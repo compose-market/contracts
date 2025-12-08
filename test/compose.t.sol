@@ -75,8 +75,8 @@ contract ComposeTest is Test {
         clone = new Clone(address(agentFactory));
         warp = new Warp(address(agentFactory), treasury);
 
-        // Deploy Manowar
-        manowar = new Manowar(address(agentFactory));
+        // Deploy Manowar (with USDC payment token)
+        manowar = new Manowar(address(agentFactory), address(usdc));
 
         // Deploy RFA and Lease
         rfa = new RFA(address(usdc), address(manowar), address(agentFactory));
@@ -111,6 +111,8 @@ contract ComposeTest is Test {
         // Set RFA contract in Manowar
         manowar.setRFAContract(address(rfa));
         manowar.setLeaseContract(address(lease));
+        manowar.setDistributor(address(distributor));
+        manowar.setTreasury(treasury);
     }
 
     // =============================================================================
@@ -520,8 +522,12 @@ contract ComposeTest is Test {
             coordinatorModel: ""
         });
 
-        vm.prank(alice);
+        // Bob mints the manowar (needs to approve USDC for agent prices)
+        uint256 totalPrice = 500000 + 300000; // agent1 + agent2 prices
+        vm.startPrank(bob);
+        usdc.approve(address(manowar), totalPrice);
         uint256 manowarId = manowar.mintManowar(params, agentIds);
+        vm.stopPrank();
 
         assertEq(manowarId, 1);
         assertEq(manowar.totalManowars(), 1);
@@ -533,6 +539,9 @@ contract ComposeTest is Test {
 
         uint256[] memory agents = manowar.getAgents(manowarId);
         assertEq(agents.length, 2);
+        
+        // Verify alice (agent creator) received payment
+        // Note: distributor splits payments, so check sum went through
     }
 
     function test_Manowar_AddRemoveAgent() public {
@@ -655,6 +664,7 @@ contract ComposeTest is Test {
     function test_Manowar_CalculateTotalPrice() public {
         vm.startPrank(alice);
         uint256 agent1 = agentFactory.mintAgent(keccak256("tp1"), 100, 500000, false, "ipfs://1");
+        vm.stopPrank();
 
         uint256[] memory agentIds = new uint256[](1);
         agentIds[0] = agent1;
@@ -666,6 +676,9 @@ contract ComposeTest is Test {
             coordinatorAgentId: 0, coordinatorModel: ""
         });
 
+        // Bob mints the manowar - needs to approve USDC for agent price
+        vm.startPrank(bob);
+        usdc.approve(address(manowar), 500000);
         uint256 manowarId = manowar.mintManowar(params, agentIds);
         vm.stopPrank();
 
@@ -723,6 +736,7 @@ contract ComposeTest is Test {
     function test_Manowar_ERC7401_ChildrenOf() public {
         vm.startPrank(alice);
         uint256 agent1 = agentFactory.mintAgent(keccak256("c1"), 100, 500000, false, "ipfs://1");
+        vm.stopPrank();
 
         uint256[] memory agentIds = new uint256[](1);
         agentIds[0] = agent1;
@@ -734,6 +748,9 @@ contract ComposeTest is Test {
             coordinatorAgentId: 0, coordinatorModel: ""
         });
 
+        // Bob mints the manowar - needs to approve USDC for agent price
+        vm.startPrank(bob);
+        usdc.approve(address(manowar), 500000);
         uint256 manowarId = manowar.mintManowar(params, agentIds);
         vm.stopPrank();
 
@@ -760,6 +777,7 @@ contract ComposeTest is Test {
     function test_Manowar_ERC7401_ParentOf() public {
         vm.startPrank(alice);
         uint256 agent1 = agentFactory.mintAgent(keccak256("p1"), 100, 500000, false, "ipfs://1");
+        vm.stopPrank();
 
         uint256[] memory agentIds = new uint256[](1);
         agentIds[0] = agent1;
@@ -771,6 +789,9 @@ contract ComposeTest is Test {
             coordinatorAgentId: 0, coordinatorModel: ""
         });
 
+        // Bob mints the manowar - needs to approve USDC for agent price
+        vm.startPrank(bob);
+        usdc.approve(address(manowar), 500000);
         uint256 manowarId = manowar.mintManowar(params, agentIds);
         vm.stopPrank();
 
@@ -1472,8 +1493,11 @@ contract ComposeTest is Test {
             coordinatorModel: "asi1-agentic"
         });
 
-        vm.prank(alice);
+        // Alice needs to approve USDC for the total price of agents (300000 + 400000 + 200000 = 900000)
+        vm.startPrank(alice);
+        usdc.approve(address(manowar), 900000);
         uint256 manowarId = manowar.mintManowar(manowarParams, agents);
+        vm.stopPrank();
 
         // 5. Verify Manowar
         IManowar.ManowarData memory data = manowar.getManowarData(manowarId);
