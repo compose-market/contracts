@@ -17,7 +17,7 @@ import {AgentManager} from "../src/agentmanager.sol";
 import {Delegation} from "../src/delegation.sol";
 
 /**
- * @title ComposeDeployScript
+ * @title Compose
  * @notice Deployment script for the Manowar Protocol on Avalanche Fuji
  * 
  * Deploy order:
@@ -34,7 +34,7 @@ import {Delegation} from "../src/delegation.sol";
  * Network: Avalanche Fuji (Chain ID: 43113)
  * USDC: 0x5425890298aed601595a70AB815c96711a31Bc65
  */
-contract ComposeDeployScript is Script {
+contract Compose is Script {
     // =============================================================================
     // Configuration
     // =============================================================================
@@ -69,8 +69,8 @@ contract ComposeDeployScript is Script {
     // =============================================================================
 
     function run() external {
-        // Get deployer private key from environment
-        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_KEY");
+        // Get deployer private key from environment (hex string)
+        uint256 deployerPrivateKey = uint256(vm.envBytes32("DEPLOYER_KEY"));
         address deployer = vm.addr(deployerPrivateKey);
         
         console.log("=== Manowar Protocol Deployment ===");
@@ -108,7 +108,7 @@ contract ComposeDeployScript is Script {
         // Step 4: Deploy Manowar (ERC-7401)
         console.log("");
         console.log("Step 4: Deploying Manowar...");
-        manowar = new Manowar(address(agentFactory));
+        manowar = new Manowar(address(agentFactory), USDC_FUJI);
         console.log("  Manowar:", address(manowar));
 
         // Step 5: Deploy RFA
@@ -172,7 +172,9 @@ contract ComposeDeployScript is Script {
         // Set RFA contract in Manowar
         manowar.setRFAContract(address(rfa));
         manowar.setLeaseContract(address(lease));
-        console.log("  Manowar RFA/Lease contracts set");
+        manowar.setDistributor(address(distributor));
+        manowar.setTreasury(TREASURY);
+        console.log("  Manowar RFA/Lease/Distributor/Treasury contracts set");
 
         vm.stopBroadcast();
 
@@ -202,23 +204,23 @@ contract ComposeDeployScript is Script {
     // =============================================================================
 
     function deployAgentFactory() external returns (address) {
-        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_KEY");
+        uint256 deployerPrivateKey = uint256(vm.envBytes32("DEPLOYER_KEY"));
         vm.startBroadcast(deployerPrivateKey);
         agentFactory = new AgentFactory();
         vm.stopBroadcast();
         return address(agentFactory);
     }
 
-    function deployManowar(address _agentFactory) external returns (address) {
-        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_KEY");
+    function deployManowar(address _agentFactory, address _paymentToken) external returns (address) {
+        uint256 deployerPrivateKey = uint256(vm.envBytes32("DEPLOYER_KEY"));
         vm.startBroadcast(deployerPrivateKey);
-        manowar = new Manowar(_agentFactory);
+        manowar = new Manowar(_agentFactory, _paymentToken);
         vm.stopBroadcast();
         return address(manowar);
     }
 
     function deployRFA(address _manowar, address _agentFactory) external returns (address) {
-        uint256 deployerPrivateKey = vm.envUint("DEPLOYER_KEY");
+        uint256 deployerPrivateKey = uint256(vm.envBytes32("DEPLOYER_KEY"));
         vm.startBroadcast(deployerPrivateKey);
         rfa = new RFA(USDC_FUJI, _manowar, _agentFactory);
         vm.stopBroadcast();
