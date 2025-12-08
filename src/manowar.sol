@@ -4,6 +4,15 @@ pragma solidity ^0.8.28;
 import {IManowar} from "./interfaces/Imanowar.sol";
 import {IERC7401} from "./interfaces/IERC7401.sol";
 import {IAgentFactory} from "./interfaces/Iagentfactory.sol";
+import {IDistributor} from "./interfaces/Iroyalties.sol";
+
+/// @notice Minimal IERC20 interface for payment token
+interface IERC20 {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
 
 /**
  * @title Manowar
@@ -23,6 +32,7 @@ contract Manowar is IManowar {
     // =============================================================================
 
     uint8 public constant MAX_LEASE_PERCENT = 20;
+    uint8 public constant TREASURY_FEE_PERCENT = 10;
 
     // =============================================================================
     // State Variables
@@ -30,6 +40,15 @@ contract Manowar is IManowar {
 
     /// @notice Reference to AgentFactory
     IAgentFactory public immutable agentFactory;
+
+    /// @notice USDC payment token
+    IERC20 public immutable paymentToken;
+
+    /// @notice Distributor contract for payment splits
+    IDistributor public distributor;
+
+    /// @notice Treasury wallet for platform fees
+    address public treasury;
 
     /// @notice Total Manowars minted
     uint256 private _totalManowars;
@@ -134,9 +153,11 @@ contract Manowar is IManowar {
     // Constructor
     // =============================================================================
 
-    constructor(address _agentFactory) {
+    constructor(address _agentFactory, address _paymentToken) {
         require(_agentFactory != address(0), "Zero address");
+        require(_paymentToken != address(0), "Zero payment token");
         agentFactory = IAgentFactory(_agentFactory);
+        paymentToken = IERC20(_paymentToken);
         _admin = msg.sender;
         _nextManowarId = 1;
     }
@@ -158,11 +179,54 @@ contract Manowar is IManowar {
         manowarId = _nextManowarId++;
         _totalManowars++;
 
-        // Calculate total price from agents
+        // Calculate total price from agents and build creator arrays for distribution
         uint256 totalPrice = 0;
+        address[] memory creators = new address[](agentIds.length);
+        uint256[] memory prices = new uint256[](agentIds.length);
+        
         for (uint256 i = 0; i < agentIds.length; i++) {
             IAgentFactory.AgentData memory agentData = agentFactory.getAgentData(agentIds[i]);
             totalPrice += agentData.price;
+            creators[i] = agentData.creator;
+            prices[i] = agentData.price;
+            
+            // Consume a unit from each agent (on-chain tracking for manowar inclusion)
+            // This is separate from x402 API usage which is unlimited/off-chain
+            try agentFactory.consumeUnit(agentIds[i], msg.sender) {} catch {}
+        }
+
+        // Collect payment from minter and distribute (10% treasury, 90% to creators)
+        if (totalPrice > 0) {
+            require(
+                paymentToken.transferFrom(msg.sender, address(this), totalPrice),
+                "Payment transfer failed"
+            );
+            
+            // Calculate treasury fee (10%)
+            uint256 treasuryFee = (totalPrice * TREASURY_FEE_PERCENT) / 100;
+            uint256 creatorsTotal = totalPrice - treasuryFee;
+            
+            // Send treasury fee
+            if (treasuryFee > 0 && treasury != address(0)) {
+                require(
+                    paymentToken.transfer(treasury, treasuryFee),
+                    "Treasury payment failed"
+                );
+            }
+            
+            // Distribute remaining 90% to agent creators proportionally
+            if (creatorsTotal > 0) {
+                for (uint256 i = 0; i < agentIds.length; i++) {
+                    if (prices[i] > 0) {
+                        // Calculate creator's proportional share of the 90%
+                        uint256 creatorShare = (prices[i] * creatorsTotal) / totalPrice;
+                        require(
+                            paymentToken.transfer(creators[i], creatorShare),
+                            "Creator payment failed"
+                        );
+                    }
+                }
+            }
         }
 
         // Store Manowar data
@@ -515,6 +579,16 @@ contract Manowar is IManowar {
 
     function setLeaseContract(address leaseContract) external onlyAdmin {
         _leaseContract = leaseContract;
+    }
+
+    function setDistributor(address _distributor) external onlyAdmin {
+        require(_distributor != address(0), "Zero address");
+        distributor = IDistributor(_distributor);
+    }
+
+    function setTreasury(address _treasury) external onlyAdmin {
+        require(_treasury != address(0), "Zero address");
+        treasury = _treasury;
     }
 
     function transferAdmin(address newAdmin) external onlyAdmin {
