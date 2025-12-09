@@ -50,16 +50,16 @@ interface IWarp {
      * @notice Warp an external agent into the Manowar ecosystem
      * @param originalAgentHash Hash identifying the external agent (e.g., from ERC-8004 or A2A)
      * @param originalCreator Original creator address (0x0 if unknown)
-     * @param units Supply cap for the warped agent
-     * @param price Integration price in USDC (6 decimals)
+     * @param licenses Supply cap for the warped agent
+     * @param licensePrice License price in USDC (6 decimals)
      * @param agentCardUri IPFS URI to the Agent Card JSON
      * @return warpedAgentId The newly created agent's ID
      */
     function warpAgent(
         bytes32 originalAgentHash,
         address originalCreator,
-        uint256 units,
-        uint256 price,
+        uint256 licenses,
+        uint256 licensePrice,
         string calldata agentCardUri
     ) external returns (uint256 warpedAgentId);
 

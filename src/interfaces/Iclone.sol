@@ -23,15 +23,15 @@ interface IClone {
     /**
      * @notice Clone parameters for mutable fields
      * @param chainId New chain ID for the clone
-     * @param price New price in USDC (6 decimals)
+     * @param licensePrice New license price in USDC (6 decimals)
      * @param model New model identifier
-     * @param units New supply cap
+     * @param licenses New license supply cap
      */
     struct CloneParams {
         uint256 chainId;
-        uint256 price;
+        uint256 licensePrice;
         string model;
-        uint256 units;
+        uint256 licenses;
     }
 
     /**

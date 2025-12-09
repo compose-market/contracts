@@ -37,18 +37,18 @@ interface IDelegation {
      * @notice Execute clone operation via delegation
      * @param originalAgentId The agent to clone
      * @param chainId New chain ID
-     * @param price New price
+     * @param licensePrice New license price
      * @param model New model
-     * @param units New units
+     * @param licenses New license supply cap
      * @param agentCardUri New agent card URI
      * @return clonedAgentId The new cloned agent ID
      */
     function delegateClone(
         uint256 originalAgentId,
         uint256 chainId,
-        uint256 price,
+        uint256 licensePrice,
         string calldata model,
-        uint256 units,
+        uint256 licenses,
         string calldata agentCardUri
     ) external returns (uint256 clonedAgentId);
 
@@ -56,16 +56,16 @@ interface IDelegation {
      * @notice Execute warp operation via delegation
      * @param originalAgentHash Hash of external agent
      * @param originalCreator Original creator address
-     * @param units Supply cap
-     * @param price Integration price
+     * @param licenses Supply cap
+     * @param licensePrice License price
      * @param agentCardUri Agent card URI
      * @return warpedAgentId The new warped agent ID
      */
     function delegateWarp(
         bytes32 originalAgentHash,
         address originalCreator,
-        uint256 units,
-        uint256 price,
+        uint256 licenses,
+        uint256 licensePrice,
         string calldata agentCardUri
     ) external returns (uint256 warpedAgentId);
 
