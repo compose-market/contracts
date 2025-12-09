@@ -137,8 +137,8 @@ contract ComposeTest is Test {
         // Check agent data
         AgentFactory.AgentData memory data = agentFactory.getAgentData(agentId);
         assertEq(data.dnaHash, dnaHash);
-        assertEq(data.units, 100);
-        assertEq(data.price, 1000000);
+        assertEq(data.licenses, 100);
+        assertEq(data.licensePrice, 1000000);
         assertEq(data.creator, alice);
         assertTrue(data.cloneable);
         assertFalse(data.isClone);
@@ -173,7 +173,7 @@ contract ComposeTest is Test {
         agentFactory.updatePrice(agentId, 2000000);
 
         AgentFactory.AgentData memory data = agentFactory.getAgentData(agentId);
-        assertEq(data.price, 2000000);
+        assertEq(data.licensePrice, 2000000);
     }
 
     function test_AgentFactory_GetDnaHash() public {
@@ -185,25 +185,25 @@ contract ComposeTest is Test {
         assertEq(agentFactory.getDnaHash(agentId), dnaHash);
     }
 
-    function test_AgentFactory_HasAvailableUnits() public {
+    function test_AgentFactory_HasAvailableLicenses() public {
         vm.prank(alice);
         uint256 agentId = agentFactory.mintAgent(keccak256("test"), 2, 1000000, false, "ipfs://test");
         
-        assertTrue(agentFactory.hasAvailableUnits(agentId));
+        assertTrue(agentFactory.hasAvailableLicenses(agentId));
     }
 
-    function test_AgentFactory_ConsumeUnit() public {
+    function test_AgentFactory_ConsumeLicense() public {
         vm.prank(alice);
         uint256 agentId = agentFactory.mintAgent(keccak256("consume"), 2, 1000000, false, "ipfs://test");
         
         // Manowar contract is authorized
         vm.prank(address(manowar));
-        uint256 unit1 = agentFactory.consumeUnit(agentId, bob);
-        assertEq(unit1, 1);
+        uint256 license1 = agentFactory.consumeLicense(agentId, address(manowar), 1);
+        assertEq(license1, 1);
         
         vm.prank(address(manowar));
-        uint256 unit2 = agentFactory.consumeUnit(agentId, charlie);
-        assertEq(unit2, 2);
+        uint256 license2 = agentFactory.consumeLicense(agentId, address(manowar), 2);
+        assertEq(license2, 2);
     }
 
     function test_AgentFactory_IsAgentClone() public {
@@ -323,9 +323,9 @@ contract ComposeTest is Test {
 
         IClone.CloneParams memory params = IClone.CloneParams({
             chainId: 1,
-            price: 500000,
+            licensePrice: 500000,
             model: "gpt-4",
-            units: 50
+            licenses: 50
         });
 
         vm.prank(bob);
@@ -357,7 +357,7 @@ contract ComposeTest is Test {
         uint256 originalId = agentFactory.mintAgent(keccak256("orig"), 100, 1000000, true, "ipfs://test");
 
         IClone.CloneParams memory params = IClone.CloneParams({
-            chainId: 1, price: 500000, model: "m", units: 50
+            chainId: 1, licensePrice: 500000, model: "m", licenses: 50
         });
 
         vm.prank(bob);
@@ -375,7 +375,7 @@ contract ComposeTest is Test {
         uint256 agentId = agentFactory.mintAgent(keccak256("nc"), 100, 1000000, false, "ipfs://test");
 
         IClone.CloneParams memory params = IClone.CloneParams({
-            chainId: 1, price: 500000, model: "gpt-4", units: 50
+            chainId: 1, licensePrice: 500000, model: "gpt-4", licenses: 50
         });
 
         vm.prank(bob);
@@ -1462,7 +1462,7 @@ contract ComposeTest is Test {
 
         // 2. Bob clones agent1
         IClone.CloneParams memory cloneParams = IClone.CloneParams({
-            chainId: 1, price: 400000, model: "clone-model", units: 50
+            chainId: 1, licensePrice: 400000, model: "clone-model", licenses: 50
         });
 
         vm.prank(bob);
