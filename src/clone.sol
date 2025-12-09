@@ -76,8 +76,8 @@ contract Clone is IClone {
         // Note: AgentFactory.mintClone must be called by an authorized consumer
         clonedAgentId = _mintCloneViaFactory(
             newDnaHash,
-            params.units,
-            params.price,
+            params.licenses,
+            params.licensePrice,
             originalAgentId,
             newAgentCardUri
         );
@@ -118,8 +118,8 @@ contract Clone is IClone {
      */
     function _mintCloneViaFactory(
         bytes32 dnaHash,
-        uint256 units,
-        uint256 price,
+        uint256 licenses,
+        uint256 licensePrice,
         uint256 parentAgentId,
         string calldata agentCardUri
     ) internal returns (uint256 agentId) {
@@ -129,8 +129,8 @@ contract Clone is IClone {
             abi.encodeWithSignature(
                 "mintClone(bytes32,uint256,uint256,uint256,address,string)",
                 dnaHash,
-                units,
-                price,
+                licenses,
+                licensePrice,
                 parentAgentId,
                 msg.sender,
                 agentCardUri

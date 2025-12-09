@@ -66,8 +66,8 @@ contract Warp is IWarp {
     function warpAgent(
         bytes32 originalAgentHash,
         address originalCreator,
-        uint256 units,
-        uint256 price,
+        uint256 licenses,
+        uint256 licensePrice,
         string calldata agentCardUri
     ) external returns (uint256 warpedAgentId) {
         if (originalAgentHash == bytes32(0)) revert InvalidExternalAgent();
@@ -86,8 +86,8 @@ contract Warp is IWarp {
         // Mint the warped agent via AgentFactory
         warpedAgentId = _mintWarpedViaFactory(
             dnaHash,
-            units,
-            price,
+            licenses,
+            licensePrice,
             agentCardUri
         );
 
@@ -208,16 +208,16 @@ contract Warp is IWarp {
      */
     function _mintWarpedViaFactory(
         bytes32 dnaHash,
-        uint256 units,
-        uint256 price,
+        uint256 licenses,
+        uint256 licensePrice,
         string calldata agentCardUri
     ) internal returns (uint256 agentId) {
         (bool success, bytes memory data) = address(agentFactory).call(
             abi.encodeWithSignature(
                 "mintWarped(bytes32,uint256,uint256,address,string)",
                 dnaHash,
-                units,
-                price,
+                licenses,
+                licensePrice,
                 msg.sender,
                 agentCardUri
             )

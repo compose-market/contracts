@@ -6,15 +6,18 @@ import {IERC8004Identity, IERC8004Reputation, IERC8004Validation} from "./interf
 
 /**
  * @title AgentFactory
- * @notice ERC-8004 Identity Registry with Manowar extensions
- * @dev Implements ERC-721 for AgentIDs with extended metadata for cloning, pricing, units
+ * @notice ERC-8004 Identity Registry with Manowar extensions and licensing support
+ * @dev Implements ERC-721 for AgentIDs with extended metadata for licensing, cloning, and pricing
  * 
- * This contract is the core identity layer for Manowar agents. Each agent minted here
- * receives a unique AgentID (ERC-721 token) linked to an off-chain Agent Card (A2A compatible).
+ * Licensing Model:
+ * - Each agent has a `licensePrice` - the fee to include it in a Manowar workflow
+ * - Each agent has `licenses` - supply cap for how many times it can be licensed (0 = infinite)
+ * - When licensed into a Manowar, bi-directional tracking records the relationship
+ * - Agent creators retain ownership and receive payment when their agents are licensed
  * 
  * Manowar Extensions:
- * - `units`: Supply cap for agent usage (0 = infinite)
- * - `price`: Integration fee in USDC (6 decimals)  
+ * - `licenses`: Supply cap for agent licensing (0 = infinite)
+ * - `licensePrice`: Integration fee in USDC (6 decimals)  
  * - `cloneable`: Whether the agent can be cloned
  * - `dnaHash`: Unique identifier from keccak256(skills, chain, model)
  */
@@ -59,11 +62,21 @@ contract AgentFactory is IAgentFactory {
     /// @notice Validation: total validation count per agent
     mapping(uint256 => uint256) private _totalValidations;
 
-    /// @notice Authorized contracts that can consume units
+    /// @notice Authorized contracts that can consume licenses
     mapping(address => bool) private _authorizedConsumers;
 
     /// @notice Contract admin
     address private _admin;
+
+    // =============================================================================
+    // License Tracking State
+    // =============================================================================
+
+    /// @notice Bi-directional license tracking: agentId => manowarContract => manowarId => licensed
+    mapping(uint256 => mapping(address => mapping(uint256 => bool))) private _licensedTo;
+
+    /// @notice License records for each agent
+    mapping(uint256 => LicenseRecord[]) private _licenseRecords;
 
     // =============================================================================
     // ERC-721 Events
@@ -120,8 +133,8 @@ contract AgentFactory is IAgentFactory {
     /// @inheritdoc IAgentFactory
     function mintAgent(
         bytes32 dnaHash,
-        uint256 units,
-        uint256 price,
+        uint256 licenses,
+        uint256 licensePrice,
         bool cloneable,
         string calldata agentCardUri
     ) external returns (uint256 agentId) {
@@ -136,9 +149,9 @@ contract AgentFactory is IAgentFactory {
         // Store agent data
         _agents[agentId] = AgentData({
             dnaHash: dnaHash,
-            units: units,
-            unitsMinted: 0,
-            price: price,
+            licenses: licenses,
+            licensesMinted: 0,
+            licensePrice: licensePrice,
             creator: msg.sender,
             cloneable: cloneable,
             isClone: false,
@@ -152,7 +165,7 @@ contract AgentFactory is IAgentFactory {
         // Register DNA hash
         _dnaHashToAgentId[dnaHash] = agentId;
 
-        emit AgentMinted(agentId, msg.sender, dnaHash, units, price, cloneable);
+        emit AgentMinted(agentId, msg.sender, dnaHash, licenses, licensePrice, cloneable);
         emit AgentRegistered(agentId, msg.sender, dnaHash, agentCardUri);
     }
 
@@ -167,28 +180,72 @@ contract AgentFactory is IAgentFactory {
     }
 
     /// @inheritdoc IAgentFactory
-    function hasAvailableUnits(uint256 agentId) external view onlyExistingAgent(agentId) returns (bool available) {
+    function hasAvailableLicenses(uint256 agentId) external view onlyExistingAgent(agentId) returns (bool available) {
         AgentData storage agent = _agents[agentId];
-        // units == 0 means infinite
-        return agent.units == 0 || agent.unitsMinted < agent.units;
+        // licenses == 0 means infinite
+        return agent.licenses == 0 || agent.licensesMinted < agent.licenses;
     }
 
     /// @inheritdoc IAgentFactory
-    function consumeUnit(uint256 agentId, address assignTo) 
-        external 
-        onlyAuthorizedConsumer 
-        onlyExistingAgent(agentId) 
-        returns (uint256 unitNumber) 
-    {
+    function consumeLicense(
+        uint256 agentId,
+        address manowarContract,
+        uint256 manowarId
+    ) external onlyAuthorizedConsumer onlyExistingAgent(agentId) returns (uint256 licenseNumber) {
         AgentData storage agent = _agents[agentId];
         
-        // Check availability (units == 0 means infinite)
-        if (agent.units != 0 && agent.unitsMinted >= agent.units) {
-            revert NoUnitsAvailable(agentId);
+        // Check availability (licenses == 0 means infinite)
+        if (agent.licenses != 0 && agent.licensesMinted >= agent.licenses) {
+            revert NoLicensesAvailable(agentId);
         }
 
-        unitNumber = ++agent.unitsMinted;
-        emit AgentUnitConsumed(agentId, unitNumber, assignTo);
+        // Check not already licensed to this Manowar
+        if (_licensedTo[agentId][manowarContract][manowarId]) {
+            revert AlreadyLicensed(agentId, manowarContract, manowarId);
+        }
+
+        licenseNumber = ++agent.licensesMinted;
+
+        // Record the license
+        _licensedTo[agentId][manowarContract][manowarId] = true;
+        _licenseRecords[agentId].push(LicenseRecord({
+            manowarContract: manowarContract,
+            manowarId: manowarId,
+            licensedAt: block.timestamp
+        }));
+
+        emit AgentLicensed(agentId, manowarContract, manowarId, licenseNumber);
+    }
+
+    /// @inheritdoc IAgentFactory
+    function revokeLicense(
+        uint256 agentId,
+        address manowarContract,
+        uint256 manowarId
+    ) external onlyAuthorizedConsumer onlyExistingAgent(agentId) {
+        if (!_licensedTo[agentId][manowarContract][manowarId]) {
+            revert NotLicensed(agentId, manowarContract, manowarId);
+        }
+
+        _licensedTo[agentId][manowarContract][manowarId] = false;
+        // Note: We don't remove from _licenseRecords array for gas efficiency
+        // The _licensedTo mapping is the source of truth for active licenses
+
+        emit AgentLicenseRevoked(agentId, manowarContract, manowarId);
+    }
+
+    /// @inheritdoc IAgentFactory
+    function isLicensedTo(
+        uint256 agentId,
+        address manowarContract,
+        uint256 manowarId
+    ) external view returns (bool licensed) {
+        return _licensedTo[agentId][manowarContract][manowarId];
+    }
+
+    /// @inheritdoc IAgentFactory
+    function getLicenseRecords(uint256 agentId) external view returns (LicenseRecord[] memory records) {
+        return _licenseRecords[agentId];
     }
 
     /// @inheritdoc IAgentFactory
@@ -197,8 +254,8 @@ contract AgentFactory is IAgentFactory {
         onlyAgentCreator(agentId) 
         onlyExistingAgent(agentId) 
     {
-        uint256 oldPrice = _agents[agentId].price;
-        _agents[agentId].price = newPrice;
+        uint256 oldPrice = _agents[agentId].licensePrice;
+        _agents[agentId].licensePrice = newPrice;
         emit AgentPriceUpdated(agentId, oldPrice, newPrice);
     }
 
@@ -217,6 +274,11 @@ contract AgentFactory is IAgentFactory {
         return _totalAgents;
     }
 
+    /// @inheritdoc IAgentFactory
+    function agentExists(uint256 agentId) external view override returns (bool exists) {
+        return _owners[agentId] != address(0);
+    }
+
     // =============================================================================
     // IERC8004Identity Implementation
     // =============================================================================
@@ -231,9 +293,9 @@ contract AgentFactory is IAgentFactory {
 
         _agents[agentId] = AgentData({
             dnaHash: dnaHash,
-            units: 0, // Infinite by default
-            unitsMinted: 0,
-            price: 0,
+            licenses: 0, // Infinite by default
+            licensesMinted: 0,
+            licensePrice: 0,
             creator: msg.sender,
             cloneable: false,
             isClone: false,
@@ -260,11 +322,6 @@ contract AgentFactory is IAgentFactory {
     {
         _agents[agentId].agentCardUri = newUri;
         emit AgentCardUpdated(agentId, newUri);
-    }
-
-    /// @inheritdoc IERC8004Identity
-    function agentExists(uint256 agentId) external view override returns (bool exists) {
-        return _owners[agentId] != address(0);
     }
 
     /// @inheritdoc IERC8004Identity
@@ -339,8 +396,8 @@ contract AgentFactory is IAgentFactory {
     /// @notice Mint a cloned agent (called by Clone contract)
     function mintClone(
         bytes32 dnaHash,
-        uint256 units,
-        uint256 price,
+        uint256 licenses,
+        uint256 licensePrice,
         uint256 parentAgentId,
         address cloner,
         string calldata agentCardUri
@@ -353,9 +410,9 @@ contract AgentFactory is IAgentFactory {
 
         _agents[agentId] = AgentData({
             dnaHash: dnaHash,
-            units: units,
-            unitsMinted: 0,
-            price: price,
+            licenses: licenses,
+            licensesMinted: 0,
+            licensePrice: licensePrice,
             creator: cloner,
             cloneable: false, // Clones cannot be cloned
             isClone: true,
@@ -366,15 +423,15 @@ contract AgentFactory is IAgentFactory {
         _mint(cloner, agentId);
         _dnaHashToAgentId[dnaHash] = agentId;
 
-        emit AgentMinted(agentId, cloner, dnaHash, units, price, false);
+        emit AgentMinted(agentId, cloner, dnaHash, licenses, licensePrice, false);
         emit AgentRegistered(agentId, cloner, dnaHash, agentCardUri);
     }
 
     /// @notice Mint a warped agent (called by Warp contract)
     function mintWarped(
         bytes32 dnaHash,
-        uint256 units,
-        uint256 price,
+        uint256 licenses,
+        uint256 licensePrice,
         address warper,
         string calldata agentCardUri
     ) external onlyAuthorizedConsumer returns (uint256 agentId) {
@@ -386,9 +443,9 @@ contract AgentFactory is IAgentFactory {
 
         _agents[agentId] = AgentData({
             dnaHash: dnaHash,
-            units: units,
-            unitsMinted: 0,
-            price: price,
+            licenses: licenses,
+            licensesMinted: 0,
+            licensePrice: licensePrice,
             creator: warper,
             cloneable: false, // Warped agents cannot be cloned
             isClone: false,
@@ -399,7 +456,7 @@ contract AgentFactory is IAgentFactory {
         _mint(warper, agentId);
         _dnaHashToAgentId[dnaHash] = agentId;
 
-        emit AgentMinted(agentId, warper, dnaHash, units, price, false);
+        emit AgentMinted(agentId, warper, dnaHash, licenses, licensePrice, false);
         emit AgentRegistered(agentId, warper, dnaHash, agentCardUri);
     }
 
@@ -407,7 +464,7 @@ contract AgentFactory is IAgentFactory {
     // Admin Functions
     // =============================================================================
 
-    /// @notice Authorize a contract to consume units
+    /// @notice Authorize a contract to consume licenses
     function authorizeConsumer(address consumer) external onlyAdmin {
         _authorizedConsumers[consumer] = true;
     }
