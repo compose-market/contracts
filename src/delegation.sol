@@ -96,18 +96,18 @@ contract Delegation is IDelegation {
     function delegateClone(
         uint256 originalAgentId,
         uint256 chainId,
-        uint256 price,
+        uint256 licensePrice,
         string calldata model,
-        uint256 units,
+        uint256 licenses,
         string calldata agentCardUri
     ) external onlyManager moduleExists(MODULE_CLONE) returns (uint256 clonedAgentId) {
         IClone cloneContract = IClone(_modules[MODULE_CLONE]);
         
         IClone.CloneParams memory params = IClone.CloneParams({
             chainId: chainId,
-            price: price,
+            licensePrice: licensePrice,
             model: model,
-            units: units
+            licenses: licenses
         });
 
         clonedAgentId = cloneContract.cloneAgent(originalAgentId, params, agentCardUri);
@@ -117,8 +117,8 @@ contract Delegation is IDelegation {
     function delegateWarp(
         bytes32 originalAgentHash,
         address originalCreator,
-        uint256 units,
-        uint256 price,
+        uint256 licenses,
+        uint256 licensePrice,
         string calldata agentCardUri
     ) external onlyManager moduleExists(MODULE_WARP) returns (uint256 warpedAgentId) {
         IWarp warpContract = IWarp(_modules[MODULE_WARP]);
@@ -126,8 +126,8 @@ contract Delegation is IDelegation {
         warpedAgentId = warpContract.warpAgent(
             originalAgentHash,
             originalCreator,
-            units,
-            price,
+            licenses,
+            licensePrice,
             agentCardUri
         );
     }

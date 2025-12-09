@@ -179,20 +179,17 @@ contract Manowar is IManowar {
         manowarId = _nextManowarId++;
         _totalManowars++;
 
-        // Calculate total price from agents and build creator arrays for distribution
+        // Calculate total license price from agents and build creator arrays for distribution
         uint256 totalPrice = 0;
         address[] memory creators = new address[](agentIds.length);
         uint256[] memory prices = new uint256[](agentIds.length);
         
         for (uint256 i = 0; i < agentIds.length; i++) {
             IAgentFactory.AgentData memory agentData = agentFactory.getAgentData(agentIds[i]);
-            totalPrice += agentData.price;
+            totalPrice += agentData.licensePrice;
             creators[i] = agentData.creator;
-            prices[i] = agentData.price;
-            
-            // Consume a unit from each agent (on-chain tracking for manowar inclusion)
-            // This is separate from x402 API usage which is unlimited/off-chain
-            try agentFactory.consumeUnit(agentIds[i], msg.sender) {} catch {}
+            prices[i] = agentData.licensePrice;
+            // Note: License consumption happens in _nestAgent below
         }
 
         // Collect payment from minter and distribute (10% treasury, 90% to creators)
@@ -275,9 +272,9 @@ contract Manowar is IManowar {
     function addAgent(uint256 manowarId, uint256 agentId) external onlyOwner(manowarId) manowarExists(manowarId) {
         _nestAgent(manowarId, agentId);
         
-        // Update total price
+        // Update total price with license price
         IAgentFactory.AgentData memory agentData = agentFactory.getAgentData(agentId);
-        _manowars[manowarId].totalPrice += agentData.price;
+        _manowars[manowarId].totalPrice += agentData.licensePrice;
         
         emit AgentAdded(manowarId, agentId);
     }
@@ -288,9 +285,12 @@ contract Manowar is IManowar {
         uint256 idx = _childIndex[manowarId][agentFactoryAddr][agentId];
         if (idx == 0) revert AgentNotInManowar(manowarId, agentId);
 
-        // Update total price
+        // Update total price with license price
         IAgentFactory.AgentData memory agentData = agentFactory.getAgentData(agentId);
-        _manowars[manowarId].totalPrice -= agentData.price;
+        _manowars[manowarId].totalPrice -= agentData.licensePrice;
+
+        // Revoke the license in AgentFactory (bi-directional tracking)
+        try agentFactory.revokeLicense(agentId, address(this), manowarId) {} catch {}
 
         // Remove from children array (swap and pop)
         uint256 lastIdx = _children[manowarId].length - 1;
@@ -405,11 +405,9 @@ contract Manowar is IManowar {
         
         unitNumber = ++data.unitsMinted;
         
-        // Consume units from all nested agents
-        Child[] storage children = _children[manowarId];
-        for (uint256 i = 0; i < children.length; i++) {
-            try agentFactory.consumeUnit(children[i].tokenId, buyer) {} catch {}
-        }
+        // Note: Agents are already licensed at nesting time, not usage time
+        // The Manowar's units track how many times the workflow can be used
+        // Agent licenses were consumed when they were nested into the Manowar
     }
 
     /// @inheritdoc IManowar
@@ -485,9 +483,12 @@ contract Manowar is IManowar {
         uint256 idx = _childIndex[parentId][childContract][childId];
         if (idx == 0) revert AgentNotInManowar(parentId, childId);
 
-        // Update total price
+        // Update total price with license price
         IAgentFactory.AgentData memory agentData = agentFactory.getAgentData(childId);
-        _manowars[parentId].totalPrice -= agentData.price;
+        _manowars[parentId].totalPrice -= agentData.licensePrice;
+
+        // Revoke the license in AgentFactory (bi-directional tracking)
+        try agentFactory.revokeLicense(childId, address(this), parentId) {} catch {}
 
         // Remove from children
         uint256 lastIdx = _children[parentId].length - 1;
@@ -612,6 +613,10 @@ contract Manowar is IManowar {
         
         // Verify agent exists
         require(agentFactory.agentExists(agentId), "Agent not found");
+        
+        // Consume license in AgentFactory (bi-directional tracking)
+        // This records the license relationship and decrements available licenses
+        agentFactory.consumeLicense(agentId, address(this), manowarId);
         
         // Add to children
         _children[manowarId].push(Child(agentFactoryAddr, agentId));
