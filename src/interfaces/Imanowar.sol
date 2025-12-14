@@ -50,16 +50,16 @@ interface IManowar is IERC7401 {
      * @param title Workflow title
      * @param description Workflow description
      * @param banner Banner image URI (IPFS)
-     * @param totalPrice Sum of all agent prices
-     * @param x402Price Per-use cost set by creator
+     * @param manowarCardUri Full metadata URI (IPFS) - contains nested agentCards
+     * @param totalPrice Sum of all agent license prices
      * @param units Supply cap
      * @param unitsMinted Units already minted
      * @param creator Original creator address
      * @param leaseEnabled Whether leasing is allowed
      * @param leaseDuration Lease duration in days
      * @param leasePercent Creator's share during lease (max 20%)
-     * @param coordinatorAgentId Optional coordinator agent
-     * @param coordinatorModel Model ID for coordinator
+     * @param hasCoordinator Whether workflow has a coordinator
+     * @param coordinatorModel Model ID for coordinator (if hasCoordinator)
      * @param hasActiveRfa Whether there's an active RFA
      * @param rfaId The active RFA ID
      */
@@ -67,15 +67,15 @@ interface IManowar is IERC7401 {
         string title;
         string description;
         string banner;
+        string manowarCardUri;
         uint256 totalPrice;
-        uint256 x402Price;
         uint256 units;
         uint256 unitsMinted;
         address creator;
         bool leaseEnabled;
         uint256 leaseDuration;
         uint8 leasePercent;
-        uint256 coordinatorAgentId;
+        bool hasCoordinator;
         string coordinatorModel;
         bool hasActiveRfa;
         uint256 rfaId;
@@ -88,12 +88,12 @@ interface IManowar is IERC7401 {
         string title;
         string description;
         string banner;
-        uint256 x402Price;
+        string manowarCardUri;
         uint256 units;
         bool leaseEnabled;
         uint256 leaseDuration;
         uint8 leasePercent;
-        uint256 coordinatorAgentId;
+        bool hasCoordinator;
         string coordinatorModel;
     }
 
@@ -146,10 +146,10 @@ interface IManowar is IERC7401 {
     /**
      * @notice Set or update coordinator
      * @param manowarId The Manowar ID
-     * @param coordinatorAgentId The coordinator agent (0 to remove)
-     * @param model The model ID for x402
+     * @param hasCoordinator Whether to enable coordinator
+     * @param model The model ID for coordinator
      */
-    function setCoordinator(uint256 manowarId, uint256 coordinatorAgentId, string calldata model) external;
+    function setCoordinator(uint256 manowarId, bool hasCoordinator, string calldata model) external;
 
     /**
      * @notice Update lease settings

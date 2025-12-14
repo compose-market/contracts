@@ -513,12 +513,12 @@ contract ComposeTest is Test {
             title: "Test Workflow",
             description: "A test workflow",
             banner: "ipfs://banner",
-            x402Price: 100000,
+            manowarCardUri: "",
             units: 50,
             leaseEnabled: true,
             leaseDuration: 30,
             leasePercent: 15,
-            coordinatorAgentId: 0,
+            hasCoordinator: false,
             coordinatorModel: ""
         });
 
@@ -535,7 +535,7 @@ contract ComposeTest is Test {
         IManowar.ManowarData memory data = manowar.getManowarData(manowarId);
         assertEq(data.title, "Test Workflow");
         assertEq(data.totalPrice, 800000);
-        assertEq(data.x402Price, 100000);
+        assertEq(data.manowarCardUri, "");  // manowarCardUri set in params
 
         uint256[] memory agents = manowar.getAgents(manowarId);
         assertEq(agents.length, 2);
@@ -550,9 +550,10 @@ contract ComposeTest is Test {
 
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -573,18 +574,19 @@ contract ComposeTest is Test {
 
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
         uint256 manowarId = manowar.mintManowar(params, empty);
 
-        manowar.setCoordinator(manowarId, coordAgent, "gpt-4");
+        manowar.setCoordinator(manowarId, true, "gpt-4");
 
         IManowar.ManowarData memory data = manowar.getManowarData(manowarId);
-        assertEq(data.coordinatorAgentId, coordAgent);
+        assertTrue(data.hasCoordinator);
         assertEq(data.coordinatorModel, "gpt-4");
         
         vm.stopPrank();
@@ -594,9 +596,10 @@ contract ComposeTest is Test {
         vm.startPrank(alice);
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -616,9 +619,10 @@ contract ComposeTest is Test {
         vm.startPrank(alice);
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -632,9 +636,10 @@ contract ComposeTest is Test {
         vm.startPrank(alice);
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -648,9 +653,10 @@ contract ComposeTest is Test {
         vm.startPrank(alice);
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 2, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -671,9 +677,10 @@ contract ComposeTest is Test {
 
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         // Bob mints the manowar - needs to approve USDC for agent price
@@ -682,16 +689,17 @@ contract ComposeTest is Test {
         uint256 manowarId = manowar.mintManowar(params, agentIds);
         vm.stopPrank();
 
-        assertEq(manowar.calculateTotalPrice(manowarId), 600000); // 500000 + 100000
+        assertEq(manowar.calculateTotalPrice(manowarId), 500000); // totalPrice only (x402Price removed) // 500000 + 100000
     }
 
     function test_Manowar_GetManowarsByCreator() public {
         vm.startPrank(alice);
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -707,9 +715,10 @@ contract ComposeTest is Test {
         vm.startPrank(alice);
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -743,9 +752,10 @@ contract ComposeTest is Test {
 
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         // Bob mints the manowar - needs to approve USDC for agent price
@@ -762,9 +772,10 @@ contract ComposeTest is Test {
         vm.startPrank(alice);
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -784,9 +795,10 @@ contract ComposeTest is Test {
 
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         // Bob mints the manowar - needs to approve USDC for agent price
@@ -810,9 +822,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -853,9 +866,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -883,9 +897,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -911,9 +926,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -943,9 +959,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -967,9 +984,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -992,9 +1010,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -1017,9 +1036,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -1042,9 +1062,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: false,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -1073,10 +1094,16 @@ contract ComposeTest is Test {
         vm.startPrank(alice);
         
         IManowar.MintParams memory params = IManowar.MintParams({
-            title: "Leasable Workflow", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: true,
-            leaseDuration: 30, leasePercent: 15,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            title: "Leasable Workflow",
+            description: "Test",
+            banner: "",
+            manowarCardUri: "",
+            units: 10,
+            leaseEnabled: true,
+            leaseDuration: 30,
+            leasePercent: 15,
+            hasCoordinator: false,
+            coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -1100,9 +1127,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: true,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: true,
             leaseDuration: 30, leasePercent: 15,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -1123,9 +1151,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: true,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: true,
             leaseDuration: 30, leasePercent: 20,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -1145,9 +1174,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: true,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: true,
             leaseDuration: 30, leasePercent: 15,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -1165,9 +1195,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: true,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: true,
             leaseDuration: 30, leasePercent: 15,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -1186,9 +1217,10 @@ contract ComposeTest is Test {
         
         IManowar.MintParams memory params = IManowar.MintParams({
             title: "Test", description: "Test", banner: "",
-            x402Price: 100000, units: 10, leaseEnabled: true,
+            manowarCardUri: "",
+            units: 10, leaseEnabled: true,
             leaseDuration: 30, leasePercent: 15,
-            coordinatorAgentId: 0, coordinatorModel: ""
+            hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
@@ -1484,12 +1516,12 @@ contract ComposeTest is Test {
             title: "Multi-Agent Workflow",
             description: "Combines multiple agents",
             banner: "ipfs://banner",
-            x402Price: 150000,
+            manowarCardUri: "",
             units: 25,
             leaseEnabled: true,
             leaseDuration: 60,
             leasePercent: 10,
-            coordinatorAgentId: agent1,
+            hasCoordinator: true,
             coordinatorModel: "asi1-agentic"
         });
 

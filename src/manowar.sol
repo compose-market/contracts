@@ -231,15 +231,15 @@ contract Manowar is IManowar {
             title: params.title,
             description: params.description,
             banner: params.banner,
+            manowarCardUri: params.manowarCardUri,
             totalPrice: totalPrice,
-            x402Price: params.x402Price,
             units: params.units,
             unitsMinted: 0,
             creator: msg.sender,
             leaseEnabled: params.leaseEnabled,
             leaseDuration: params.leaseDuration,
             leasePercent: params.leasePercent,
-            coordinatorAgentId: params.coordinatorAgentId,
+            hasCoordinator: params.hasCoordinator,
             coordinatorModel: params.coordinatorModel,
             hasActiveRfa: false,
             rfaId: 0
@@ -260,7 +260,7 @@ contract Manowar is IManowar {
             _nestAgent(manowarId, agentIds[i]);
         }
 
-        emit ManowarMinted(manowarId, msg.sender, params.title, params.x402Price, params.units);
+        emit ManowarMinted(manowarId, msg.sender, params.title, 0, params.units);
     }
 
     /// @inheritdoc IManowar
@@ -326,12 +326,12 @@ contract Manowar is IManowar {
     /// @inheritdoc IManowar
     function setCoordinator(
         uint256 manowarId, 
-        uint256 coordinatorAgentId, 
+        bool hasCoordinator, 
         string calldata model
     ) external onlyOwner(manowarId) manowarExists(manowarId) {
-        _manowars[manowarId].coordinatorAgentId = coordinatorAgentId;
+        _manowars[manowarId].hasCoordinator = hasCoordinator;
         _manowars[manowarId].coordinatorModel = model;
-        emit CoordinatorSet(manowarId, coordinatorAgentId, model);
+        emit CoordinatorSet(manowarId, hasCoordinator ? 1 : 0, model);
     }
 
     /// @inheritdoc IManowar
@@ -412,7 +412,7 @@ contract Manowar is IManowar {
 
     /// @inheritdoc IManowar
     function calculateTotalPrice(uint256 manowarId) external view manowarExists(manowarId) returns (uint256) {
-        return _manowars[manowarId].totalPrice + _manowars[manowarId].x402Price;
+        return _manowars[manowarId].totalPrice;
     }
 
     /// @inheritdoc IManowar
@@ -673,9 +673,8 @@ contract Manowar is IManowar {
     }
 
     function tokenURI(uint256 tokenId) external view manowarExists(tokenId) returns (string memory) {
-        // Return a data URI or IPFS link based on metadata
-        // For now, return empty - would be set via banner field
-        return _manowars[tokenId].banner;
+        // Return manowarCardUri - full metadata containing nested agentCards
+        return _manowars[tokenId].manowarCardUri;
     }
 
     function balanceOf(address owner) external view returns (uint256) {
