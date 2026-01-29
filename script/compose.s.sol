@@ -4,17 +4,17 @@ pragma solidity ^0.8.28;
 import {Script, console} from "forge-std/Script.sol";
 
 // Import all contracts
-import {AgentFactory} from "../src/agentfactory.sol";
-import {Clone} from "../src/clone.sol";
-import {Warp} from "../src/warp.sol";
-import {Manowar} from "../src/manowar.sol";
-import {RFA} from "../src/rfa.sol";
-import {Lease} from "../src/lease.sol";
-import {Royalties} from "../src/royalties.sol";
-import {Distributor} from "../src/distributor.sol";
-import {Utils} from "../src/utils.sol";
-import {AgentManager} from "../src/agentmanager.sol";
-import {Delegation} from "../src/delegation.sol";
+import {AgentFactory} from "../src/compose/agentfactory.sol";
+import {Clone} from "../src/compose/clone.sol";
+import {Warp} from "../src/compose/warp.sol";
+import {Manowar} from "../src/compose/manowar.sol";
+import {RFA} from "../src/compose/rfa.sol";
+import {Lease} from "../src/compose/lease.sol";
+import {Royalties} from "../src/compose/royalties.sol";
+import {Distributor} from "../src/compose/distributor.sol";
+import {Utils} from "../src/compose/utils.sol";
+import {AgentManager} from "../src/compose/agentmanager.sol";
+import {Delegation} from "../src/compose/delegation.sol";
 
 /**
  * @title Compose
