@@ -1,6 +1,7 @@
 # Compiler files
 cache/
 out/
+lib/
 
 # Ignores development broadcast logs
 !/broadcast
@@ -8,6 +9,8 @@ out/
 /broadcast/**/dry-run/
 broadcast/
 
+script/account_factory_init_code.txt
+script/init_code_raw.txt
 # Docs
 docs/
 
