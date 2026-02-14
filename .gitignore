@@ -18,3 +18,4 @@ docs/
 .env
 
 script/composeBNB.s.sol
+lib

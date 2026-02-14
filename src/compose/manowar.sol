@@ -14,6 +14,22 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
 }
 
+/// @notice ERC-3009 interface for gasless USDC transfers
+/// @dev Allows transfers via off-chain signatures, eliminating approve step
+interface IERC3009 {
+    function transferWithAuthorization(
+        address from,
+        address to,
+        uint256 value,
+        uint256 validAfter,
+        uint256 validBefore,
+        bytes32 nonce,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
+}
+
 /**
  * @title Manowar
  * @notice ERC-7401 Nestable NFT for composing AI agent workflows
@@ -261,6 +277,126 @@ contract Manowar is IManowar {
         }
 
         emit ManowarMinted(manowarId, msg.sender, params.title, 0, params.units);
+    }
+
+    /**
+     * @notice Mint a Manowar workflow using ERC-3009 gasless authorization
+     * @dev Allows minting with a single off-chain signature, no approve step needed
+     * @param params Minting parameters (title, description, etc.)
+     * @param agentIds Array of agent IDs to nest
+     * @param validAfter Unix timestamp after which the transfer authorization is valid
+     * @param validBefore Unix timestamp before which the transfer authorization is valid
+     * @param authNonce Unique nonce for the transfer authorization
+     * @param v ECDSA recovery id
+     * @param r ECDSA signature r component
+     * @param s ECDSA signature s component
+     * @return manowarId The ID of the newly minted Manowar
+     */
+    function mintManowarWithAuth(
+        MintParams calldata params,
+        uint256[] calldata agentIds,
+        address payer,
+        uint256 validAfter,
+        uint256 validBefore,
+        bytes32 authNonce,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external returns (uint256 manowarId) {
+        if (params.units == 0) revert InvalidUnits();
+        if (params.leaseEnabled && params.leasePercent > MAX_LEASE_PERCENT) {
+            revert InvalidLeasePercent();
+        }
+
+        manowarId = _nextManowarId++;
+        _totalManowars++;
+
+        // Calculate total license price from agents and build creator arrays
+        uint256 totalPrice = 0;
+        address[] memory creators = new address[](agentIds.length);
+        uint256[] memory prices = new uint256[](agentIds.length);
+        
+        for (uint256 i = 0; i < agentIds.length; i++) {
+            IAgentFactory.AgentData memory agentData = agentFactory.getAgentData(agentIds[i]);
+            totalPrice += agentData.licensePrice;
+            creators[i] = agentData.creator;
+            prices[i] = agentData.licensePrice;
+        }
+
+        // Use ERC-3009 transferWithAuthorization for gasless transfer
+        if (totalPrice > 0) {
+            // Transfer tokens using the signed authorization
+            IERC3009(address(paymentToken)).transferWithAuthorization(
+                payer,           // from
+                address(this),   // to
+                totalPrice,      // value
+                validAfter,
+                validBefore,
+                authNonce,
+                v, r, s
+            );
+            
+            // Calculate treasury fee (10%)
+            uint256 treasuryFee = (totalPrice * TREASURY_FEE_PERCENT) / 100;
+            uint256 creatorsTotal = totalPrice - treasuryFee;
+            
+            // Send treasury fee
+            if (treasuryFee > 0 && treasury != address(0)) {
+                require(
+                    paymentToken.transfer(treasury, treasuryFee),
+                    "Treasury payment failed"
+                );
+            }
+            
+            // Distribute remaining 90% to agent creators proportionally
+            if (creatorsTotal > 0) {
+                for (uint256 i = 0; i < agentIds.length; i++) {
+                    if (prices[i] > 0) {
+                        uint256 creatorShare = (prices[i] * creatorsTotal) / totalPrice;
+                        require(
+                            paymentToken.transfer(creators[i], creatorShare),
+                            "Creator payment failed"
+                        );
+                    }
+                }
+            }
+        }
+
+        // Store Manowar data
+        _manowars[manowarId] = ManowarData({
+            title: params.title,
+            description: params.description,
+            banner: params.banner,
+            manowarCardUri: params.manowarCardUri,
+            totalPrice: totalPrice,
+            units: params.units,
+            unitsMinted: 0,
+            creator: payer,  // Use payer as creator since they paid
+            leaseEnabled: params.leaseEnabled,
+            leaseDuration: params.leaseDuration,
+            leasePercent: params.leasePercent,
+            hasCoordinator: params.hasCoordinator,
+            coordinatorModel: params.coordinatorModel,
+            hasActiveRfa: false,
+            rfaId: 0
+        });
+
+        // Mint the NFT to the payer
+        _mint(payer, manowarId);
+
+        // Track by creator
+        _manowarsByCreator[payer].push(manowarId);
+
+        // Add to complete list (no RFA initially)
+        _completeManowarIndex[manowarId] = _completeManowars.length;
+        _completeManowars.push(manowarId);
+
+        // Nest the agents
+        for (uint256 i = 0; i < agentIds.length; i++) {
+            _nestAgent(manowarId, agentIds[i]);
+        }
+
+        emit ManowarMinted(manowarId, payer, params.title, 0, params.units);
     }
 
     /// @inheritdoc IManowar

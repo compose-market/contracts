@@ -109,6 +109,32 @@ interface IManowar is IERC7401 {
     ) external returns (uint256 manowarId);
 
     /**
+     * @notice Mint a Manowar using ERC-3009 gasless authorization
+     * @dev Combines USDC transfer and minting in single transaction
+     * @param params Minting parameters
+     * @param agentIds Initial agents to nest
+     * @param payer Address paying for the agents (source of USDC)
+     * @param validAfter Unix timestamp after which authorization is valid
+     * @param validBefore Unix timestamp before which authorization is valid
+     * @param authNonce Unique nonce for the authorization
+     * @param v ECDSA signature v
+     * @param r ECDSA signature r
+     * @param s ECDSA signature s
+     * @return manowarId The newly minted Manowar ID
+     */
+    function mintManowarWithAuth(
+        MintParams calldata params,
+        uint256[] calldata agentIds,
+        address payer,
+        uint256 validAfter,
+        uint256 validBefore,
+        bytes32 authNonce,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external returns (uint256 manowarId);
+
+    /**
      * @notice Get Manowar data
      * @param manowarId The Manowar ID
      * @return data The ManowarData struct
