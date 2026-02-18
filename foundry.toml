@@ -21,6 +21,8 @@ cronos-testnet = "${CRONOS_TESTNET_RPC}"
 cronos = "${CRONOS_MAINNET_RPC}"
 fuji = "${AVALANCHE_FUJI_RPC}"
 mainnet = "${AVALANCHE_MAINNET_RPC}"
+arb-sepolia = "${ARBITRUM_SEPOLIA_RPC}"
+arb-mainnet = "${ARBITRUM_MAINNET_RPC}"
 
 # Etherscan/Snowtrace verification
 [etherscan]
