@@ -2,26 +2,26 @@
 pragma solidity ^0.8.28;
 
 import {Script, console} from "forge-std/Script.sol";
-import {USDCFaucet} from "../src/faucet/USDCFaucet.sol";
+import {USDCDispenser} from "../src/dispenser/USDCDispenser.sol";
 
 /**
- * @title DeployFaucetDeterministic
- * @notice Deploy USDCFaucet to THE SAME ADDRESS on all chains using the Deterministic Deployment Proxy
+ * @title DeployDispenser
+ * @notice Deploy USDCDispenser to THE SAME ADDRESS on all chains using the Deterministic Deployment Proxy
  *
  * The proxy at 0x4e59b44847b379578588920cA78FbF26c0B4956C is already deployed on most chains.
  * It uses CREATE2 to deploy contracts at deterministic addresses.
  *
  * Usage:
- *   forge script script/DeployFaucetDeterministic.s.sol --rpc-url cronos-testnet --broadcast
- *   forge script script/DeployFaucetDeterministic.s.sol --rpc-url fuji --broadcast
- *   forge script script/DeployFaucetDeterministic.s.sol --rpc-url arb-sepolia --broadcast
+ *   forge script script/DeployDispenser.s.sol --rpc-url cronos-testnet --broadcast
+ *   forge script script/DeployDispenser.s.sol --rpc-url fuji --broadcast
+ *   forge script script/DeployDispenser.s.sol --rpc-url arb-sepolia --broadcast
  *
- * THE FAUCET WILL BE AT THE SAME ADDRESS ON ALL CHAINS!
+ * THE DISPENSER WILL BE AT THE SAME ADDRESS ON ALL CHAINS!
  */
-contract DeployFaucetDeterministic is Script {
+contract DeployDispenser is Script {
 
     address constant DETERMINISTIC_PROXY = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
-    bytes32 constant FAUCET_SALT = keccak256("compose:usdc-faucet:v1:2026");
+    bytes32 constant DISPENSER_SALT = keccak256("compose:usdc-dispenser:v1:2026");
 
     uint256 constant DEFAULT_CLAIM_AMOUNT = 1_000_000;
     uint256 constant DEFAULT_MAX_CLAIMS = 1000;
@@ -31,11 +31,11 @@ contract DeployFaucetDeterministic is Script {
         address deployer = vm.addr(deployerPrivateKey);
 
         address authorizedCaller = vm.envOr("SERVER_WALLET", 0xA893ceb66ac75DBDe4EBca89671AFE29f5B88359);
-        address owner = vm.envOr("FAUCET_OWNER", deployer);
+        address owner = vm.envOr("DISPENSER_OWNER", deployer);
 
         // Build init code - SAME on all chains (no chain-specific args!)
         bytes memory initCode = abi.encodePacked(
-            type(USDCFaucet).creationCode,
+            type(USDCDispenser).creationCode,
             abi.encode(
                 owner,
                 authorizedCaller,
@@ -46,9 +46,9 @@ contract DeployFaucetDeterministic is Script {
 
         // Compute deterministic address
         bytes32 bytecodeHash = keccak256(initCode);
-        address predictedAddress = computeCreate2Address(DETERMINISTIC_PROXY, FAUCET_SALT, bytecodeHash);
+        address predictedAddress = computeCreate2Address(DETERMINISTIC_PROXY, DISPENSER_SALT, bytecodeHash);
 
-        console.log("=== Deterministic Faucet Deployment ===");
+        console.log("=== Deterministic Dispenser Deployment ===");
         console.log("Chain ID:", block.chainid);
         console.log("Deployer:", deployer);
         console.log("Owner:", owner);
@@ -56,31 +56,31 @@ contract DeployFaucetDeterministic is Script {
         console.log("");
         console.log("Deterministic Proxy:", DETERMINISTIC_PROXY);
         console.log("Salt:");
-        console.logBytes32(FAUCET_SALT);
+        console.logBytes32(DISPENSER_SALT);
         console.log("");
-        console.log("PREDICTED FAUCET ADDRESS (SAME ON ALL CHAINS):", predictedAddress);
+        console.log("PREDICTED DISPENSER ADDRESS (SAME ON ALL CHAINS):", predictedAddress);
         console.log("");
 
         // Check if already deployed
         if (predictedAddress.code.length > 0) {
-            console.log("Faucet ALREADY DEPLOYED at:", predictedAddress);
-            USDCFaucet existingFaucet = USDCFaucet(predictedAddress);
+            console.log("Dispenser ALREADY DEPLOYED at:", predictedAddress);
+            USDCDispenser existingDispenser = USDCDispenser(predictedAddress);
             console.log("");
             console.log("Status:");
-            console.log("  - USDC Address:", existingFaucet.getUSDCAddress());
-            console.log("  - Claim Amount:", existingFaucet.claimAmount());
-            console.log("  - Max Claims:", existingFaucet.maxClaims());
-            console.log("  - Total Claims:", existingFaucet.totalClaims());
+            console.log("  - USDC Address:", existingDispenser.getUSDCAddress());
+            console.log("  - Claim Amount:", existingDispenser.claimAmount());
+            console.log("  - Max Claims:", existingDispenser.maxClaims());
+            console.log("  - Total Claims:", existingDispenser.totalClaims());
             return;
         }
 
-        console.log("Deploying faucet via deterministic proxy...");
+        console.log("Deploying dispenser via deterministic proxy...");
         console.log("");
 
         vm.startBroadcast(deployerPrivateKey);
 
         // Build calldata: salt (32 bytes) + initCode
-        bytes memory callData = abi.encodePacked(FAUCET_SALT, initCode);
+        bytes memory callData = abi.encodePacked(DISPENSER_SALT, initCode);
 
         // Call the deterministic proxy
         (bool success, ) = DETERMINISTIC_PROXY.call(callData);
@@ -92,20 +92,20 @@ contract DeployFaucetDeterministic is Script {
         require(predictedAddress.code.length > 0, "Contract not deployed");
 
         console.log("=== Deployment Complete ===");
-        console.log("Faucet deployed at:", predictedAddress);
+        console.log("Dispenser deployed at:", predictedAddress);
         console.log("");
         console.log("This address is THE SAME on ALL chains!");
 
-        USDCFaucet faucet = USDCFaucet(predictedAddress);
+        USDCDispenser dispenser = USDCDispenser(predictedAddress);
         console.log("");
         console.log("Status:");
-        console.log("  - USDC Address:", faucet.getUSDCAddress());
-        console.log("  - Claim Amount:", faucet.claimAmount());
-        console.log("  - Max Claims:", faucet.maxClaims());
-        console.log("  - Total Claims:", faucet.totalClaims());
+        console.log("  - USDC Address:", dispenser.getUSDCAddress());
+        console.log("  - Claim Amount:", dispenser.claimAmount());
+        console.log("  - Max Claims:", dispenser.maxClaims());
+        console.log("  - Total Claims:", dispenser.totalClaims());
         console.log("");
         console.log("Next: Fund with USDC (1000 USDC for 1000 claims)");
-        console.log("Add to .env: FAUCET_ADDRESS=", predictedAddress);
+        console.log("Add to .env: DISPENSER_ADDRESS=", predictedAddress);
     }
 
     function computeCreate2Address(
