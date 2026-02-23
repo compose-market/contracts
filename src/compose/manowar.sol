@@ -140,6 +140,7 @@ contract Manowar is IManowar {
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
     event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
     event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    error UnsupportedChain(uint256 chainId);
 
     // =============================================================================
     // Modifiers
@@ -169,13 +170,26 @@ contract Manowar is IManowar {
     // Constructor
     // =============================================================================
 
-    constructor(address _agentFactory, address _paymentToken) {
+    constructor(address _agentFactory, address _adminAddress) {
         require(_agentFactory != address(0), "Zero address");
-        require(_paymentToken != address(0), "Zero payment token");
+        require(_adminAddress != address(0), "Zero admin");
+
+        address usdcAddress = _getUSDCAddress(block.chainid);
+        if (usdcAddress == address(0)) {
+            revert UnsupportedChain(block.chainid);
+        }
+
         agentFactory = IAgentFactory(_agentFactory);
-        paymentToken = IERC20(_paymentToken);
-        _admin = msg.sender;
+        paymentToken = IERC20(usdcAddress);
+        _admin = _adminAddress;
         _nextManowarId = 1;
+    }
+
+    function _getUSDCAddress(uint256 chainId) internal pure returns (address) {
+        if (chainId == 338) return 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0; // Cronos Testnet
+        if (chainId == 43113) return 0x5425890298aed601595a70AB815c96711a31Bc65; // Avalanche Fuji
+        if (chainId == 421614) return 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d; // Arbitrum Sepolia
+        return address(0);
     }
 
     // =============================================================================
@@ -901,4 +915,3 @@ contract Manowar is IManowar {
 interface IERC721Receiver {
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4);
 }
-

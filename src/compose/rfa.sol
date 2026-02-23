@@ -16,6 +16,8 @@ import {IRFA} from "./interfaces/Irfa.sol";
  * 5. Manowar becomes visible in marketplace (RFA resolved)
  */
 contract RFA is IRFA {
+    error UnsupportedChain(uint256 chainId);
+
     // =============================================================================
     // State Variables
     // =============================================================================
@@ -66,16 +68,28 @@ contract RFA is IRFA {
     // Constructor
     // =============================================================================
 
-    constructor(address _usdc, address _manowarContract, address _agentFactory) {
-        require(_usdc != address(0), "Zero USDC address");
+    constructor(address _manowarContract, address _agentFactory, address _adminAddress) {
         require(_manowarContract != address(0), "Zero Manowar address");
         require(_agentFactory != address(0), "Zero AgentFactory address");
+        require(_adminAddress != address(0), "Zero admin");
+
+        address usdcAddress = _getUSDCAddress(block.chainid);
+        if (usdcAddress == address(0)) {
+            revert UnsupportedChain(block.chainid);
+        }
         
-        usdc = IERC20(_usdc);
+        usdc = IERC20(usdcAddress);
         manowarContract = _manowarContract;
         agentFactory = _agentFactory;
-        _admin = msg.sender;
+        _admin = _adminAddress;
         _nextRFAId = 1;
+    }
+
+    function _getUSDCAddress(uint256 chainId) internal pure returns (address) {
+        if (chainId == 338) return 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0; // Cronos Testnet
+        if (chainId == 43113) return 0x5425890298aed601595a70AB815c96711a31Bc65; // Avalanche Fuji
+        if (chainId == 421614) return 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d; // Arbitrum Sepolia
+        return address(0);
     }
 
     // =============================================================================

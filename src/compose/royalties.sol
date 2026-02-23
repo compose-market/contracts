@@ -35,16 +35,17 @@ contract Royalties is IRoyalties {
     // Constructor
     // =============================================================================
 
-    constructor(address defaultReceiver, uint96 defaultFeeNumerator) {
+    constructor(address defaultReceiver, uint96 defaultFeeNumerator, address _adminAddress) {
         require(defaultReceiver != address(0), "Zero receiver");
         require(defaultFeeNumerator <= FEE_DENOMINATOR, "Fee too high");
+        require(_adminAddress != address(0), "Zero admin");
         
         _defaultRoyalty = RoyaltyInfo({
             receiver: defaultReceiver,
             feeNumerator: defaultFeeNumerator
         });
         
-        _admin = msg.sender;
+        _admin = _adminAddress;
     }
 
     // =============================================================================
@@ -138,4 +139,3 @@ contract Royalties is IRoyalties {
         return _admin;
     }
 }
-

@@ -69,8 +69,9 @@ contract AgentManager is IAgentManager {
     // Constructor
     // =============================================================================
 
-    constructor() {
-        _admin = msg.sender;
+    constructor(address _adminAddress) {
+        if (_adminAddress == address(0)) revert ZeroAddress();
+        _admin = _adminAddress;
     }
 
     // =============================================================================

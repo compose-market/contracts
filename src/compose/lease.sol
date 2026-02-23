@@ -13,6 +13,8 @@ import {ILease} from "./interfaces/Ilease.sol";
  * - Leaser receives remaining (100 - leasePercent)%
  */
 contract Lease is ILease {
+    error UnsupportedChain(uint256 chainId);
+
     // =============================================================================
     // Constants
     // =============================================================================
@@ -51,14 +53,26 @@ contract Lease is ILease {
     // Constructor
     // =============================================================================
 
-    constructor(address _usdc, address _manowarContract) {
-        require(_usdc != address(0), "Zero USDC address");
+    constructor(address _manowarContract, address _adminAddress) {
         require(_manowarContract != address(0), "Zero Manowar address");
+        require(_adminAddress != address(0), "Zero admin");
+
+        address usdcAddress = _getUSDCAddress(block.chainid);
+        if (usdcAddress == address(0)) {
+            revert UnsupportedChain(block.chainid);
+        }
         
-        usdc = IERC20(_usdc);
+        usdc = IERC20(usdcAddress);
         manowarContract = _manowarContract;
-        _admin = msg.sender;
+        _admin = _adminAddress;
         _nextLeaseId = 1;
+    }
+
+    function _getUSDCAddress(uint256 chainId) internal pure returns (address) {
+        if (chainId == 338) return 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0; // Cronos Testnet
+        if (chainId == 43113) return 0x5425890298aed601595a70AB815c96711a31Bc65; // Avalanche Fuji
+        if (chainId == 421614) return 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d; // Arbitrum Sepolia
+        return address(0);
     }
 
     // =============================================================================

@@ -121,8 +121,9 @@ contract AgentFactory is IAgentFactory {
     // Constructor
     // =============================================================================
 
-    constructor() {
-        _admin = msg.sender;
+    constructor(address _adminAddress) {
+        require(_adminAddress != address(0), "Zero admin");
+        _admin = _adminAddress;
         _nextAgentId = 1; // Start at 1, 0 means "no agent"
     }
 

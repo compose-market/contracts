@@ -44,10 +44,11 @@ contract Distributor is IDistributor {
     // Constructor
     // =============================================================================
 
-    constructor(address _treasury) {
+    constructor(address _treasury, address _adminAddress) {
         require(_treasury != address(0), "Zero treasury");
+        require(_adminAddress != address(0), "Zero admin");
         treasury = _treasury;
-        _admin = msg.sender;
+        _admin = _adminAddress;
     }
 
     // =============================================================================
@@ -255,4 +256,3 @@ interface IERC20 {
     function transfer(address to, uint256 amount) external returns (bool);
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
-
