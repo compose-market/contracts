@@ -3,7 +3,6 @@ pragma solidity ^0.8.28;
 
 import {Script, console} from "forge-std/Script.sol";
 
-// Import all contracts
 import {AgentFactory} from "../src/compose/agentfactory.sol";
 import {Clone} from "../src/compose/clone.sol";
 import {Warp} from "../src/compose/warp.sol";
@@ -18,56 +17,30 @@ import {Delegation} from "../src/compose/delegation.sol";
 
 /**
  * @title Compose
- * @notice Deployment script for the Manowar Protocol
- * 
- * Deploy order:
- * 1. Royalties + Distributor (no dependencies)
- * 2. AgentFactory (ERC-8004 Registry)
- * 3. Clone, Warp (depends on AgentFactory)
- * 4. Manowar (depends on AgentFactory)
- * 5. RFA (depends on Manowar, AgentFactory)
- * 6. Lease (depends on Manowar)
- * 7. Delegation (references Clone, Warp, Lease)
- * 8. AgentManager (links all contracts)
- * 9. Utils (helper utilities)
- * 
- * Supported Networks:
- * - Cronos Testnet (Chain ID: 338)
- * - Avalanche Fuji (Chain ID: 43113)
+ * @notice Deterministic deployment script for the Manowar protocol suite
+ *
+ * Usage:
+ *   forge script Compose --rpc-url cronos-testnet --broadcast
+ *   forge script Compose --rpc-url fuji --broadcast
+ *   forge script Compose --rpc-url arb-sepolia --broadcast
  */
 contract Compose is Script {
-    // =============================================================================
-    // Configuration
-    // =============================================================================
+    address constant DETERMINISTIC_PROXY = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
-    // -------------------------------------------------------------------------
-    // Cronos Testnet - Chain ID: 338
-    // -------------------------------------------------------------------------
-    address constant USDC_CRONOS_TESTNET = 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0; // devUSDC.e
-    
-    // -------------------------------------------------------------------------
-    // Avalanche Fuji - Chain ID: 43113
-    // -------------------------------------------------------------------------
-    address constant USDC_FUJI = 0x5425890298aed601595a70AB815c96711a31Bc65;
-    
-    // -------------------------------------------------------------------------
-    // Shared Configuration
-    // -------------------------------------------------------------------------
-    
-    // Treasury wallet (from .env)
-    address constant TREASURY = 0x058271e764154c322F3D3dDC18aF44F7d91B1c80;
-    
-    // Default royalty: 5% (500 basis points)
+    bytes32 constant ROYALTIES_SALT = keccak256("compose:royalties:v1:2026");
+    bytes32 constant DISTRIBUTOR_SALT = keccak256("compose:distributor:v1:2026");
+    bytes32 constant AGENT_FACTORY_SALT = keccak256("compose:agent-factory:v1:2026");
+    bytes32 constant CLONE_SALT = keccak256("compose:clone:v1:2026");
+    bytes32 constant WARP_SALT = keccak256("compose:warp:v1:2026");
+    bytes32 constant MANOWAR_SALT = keccak256("compose:manowar:v1:2026");
+    bytes32 constant RFA_SALT = keccak256("compose:rfa:v1:2026");
+    bytes32 constant LEASE_SALT = keccak256("compose:lease:v1:2026");
+    bytes32 constant DELEGATION_SALT = keccak256("compose:delegation:v1:2026");
+    bytes32 constant AGENT_MANAGER_SALT = keccak256("compose:agent-manager:v1:2026");
+    bytes32 constant UTILS_SALT = keccak256("compose:utils:v1:2026");
+
+    address constant DEFAULT_TREASURY = 0x058271e764154c322F3D3dDC18aF44F7d91B1c80;
     uint96 constant DEFAULT_ROYALTY_FEE = 500;
-    
-    // Active USDC address - change based on target network
-    // For Cronos Testnet deployment, use: USDC_CRONOS_TESTNET
-    // For Avalanche Fuji deployment, use: USDC_FUJI
-    address constant ACTIVE_USDC = USDC_CRONOS_TESTNET;
-
-    // =============================================================================
-    // Deployed Addresses (filled during deployment)
-    // =============================================================================
 
     AgentFactory public agentFactory;
     Clone public clone;
@@ -81,92 +54,127 @@ contract Compose is Script {
     AgentManager public agentManager;
     Delegation public delegation;
 
-    // =============================================================================
-    // Main Deployment Function
-    // =============================================================================
-
     function run() external {
-        // Get deployer private key from environment (hex string)
         uint256 deployerPrivateKey = uint256(vm.envBytes32("DEPLOYER_KEY"));
         address deployer = vm.addr(deployerPrivateKey);
-        
-        console.log("=== Manowar Protocol Deployment ===");
+
+        address treasury = vm.envOr("TREASURY", DEFAULT_TREASURY);
+        address protocolAdmin = vm.envOr("PROTOCOL_ADMIN", deployer);
+
+        console.log("=== Deterministic Compose Deployment ===");
+        console.log("Chain ID:", block.chainid);
         console.log("Deployer:", deployer);
-        console.log("Network: Chain ID from RPC config");
-        console.log("USDC:", ACTIVE_USDC);
-        console.log("Treasury:", TREASURY);
+        console.log("Treasury:", treasury);
+        console.log("Protocol Admin:", protocolAdmin);
+        console.log("Deterministic Proxy:", DETERMINISTIC_PROXY);
         console.log("");
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Step 1: Deploy support contracts (no dependencies)
-        console.log("Step 1: Deploying support contracts...");
-        royalties = new Royalties(TREASURY, DEFAULT_ROYALTY_FEE);
-        console.log("  Royalties:", address(royalties));
-        
-        distributor = new Distributor(TREASURY);
-        console.log("  Distributor:", address(distributor));
+        royalties = Royalties(
+            _deployDeterministic(
+                "Royalties",
+                ROYALTIES_SALT,
+                abi.encodePacked(
+                    type(Royalties).creationCode,
+                    abi.encode(treasury, DEFAULT_ROYALTY_FEE, protocolAdmin)
+                )
+            )
+        );
 
-        // Step 2: Deploy AgentFactory (ERC-8004 Identity Registry)
+        distributor = Distributor(payable(
+            _deployDeterministic(
+                "Distributor",
+                DISTRIBUTOR_SALT,
+                abi.encodePacked(type(Distributor).creationCode, abi.encode(treasury, protocolAdmin))
+            )
+        ));
+
+        agentFactory = AgentFactory(
+            _deployDeterministic(
+                "AgentFactory",
+                AGENT_FACTORY_SALT,
+                abi.encodePacked(type(AgentFactory).creationCode, abi.encode(protocolAdmin))
+            )
+        );
+
+        clone = Clone(
+            _deployDeterministic(
+                "Clone",
+                CLONE_SALT,
+                abi.encodePacked(type(Clone).creationCode, abi.encode(address(agentFactory)))
+            )
+        );
+
+        warp = Warp(
+            _deployDeterministic(
+                "Warp",
+                WARP_SALT,
+                abi.encodePacked(type(Warp).creationCode, abi.encode(address(agentFactory), treasury))
+            )
+        );
+
+        manowar = Manowar(
+            _deployDeterministic(
+                "Manowar",
+                MANOWAR_SALT,
+                abi.encodePacked(type(Manowar).creationCode, abi.encode(address(agentFactory), protocolAdmin))
+            )
+        );
+
+        rfa = RFA(
+            _deployDeterministic(
+                "RFA",
+                RFA_SALT,
+                abi.encodePacked(type(RFA).creationCode, abi.encode(address(manowar), address(agentFactory), protocolAdmin))
+            )
+        );
+
+        lease = Lease(
+            _deployDeterministic(
+                "Lease",
+                LEASE_SALT,
+                abi.encodePacked(type(Lease).creationCode, abi.encode(address(manowar), protocolAdmin))
+            )
+        );
+
+        delegation = Delegation(
+            _deployDeterministic(
+                "Delegation",
+                DELEGATION_SALT,
+                type(Delegation).creationCode
+            )
+        );
+
+        agentManager = AgentManager(
+            _deployDeterministic(
+                "AgentManager",
+                AGENT_MANAGER_SALT,
+                abi.encodePacked(type(AgentManager).creationCode, abi.encode(protocolAdmin))
+            )
+        );
+
+        utils = Utils(
+            _deployDeterministic(
+                "Utils",
+                UTILS_SALT,
+                abi.encodePacked(
+                    type(Utils).creationCode,
+                    abi.encode(address(agentManager), address(agentFactory), address(manowar), protocolAdmin)
+                )
+            )
+        );
+
         console.log("");
-        console.log("Step 2: Deploying AgentFactory...");
-        agentFactory = new AgentFactory();
-        console.log("  AgentFactory:", address(agentFactory));
+        console.log("=== Initializing Ecosystem ===");
 
-        // Step 3: Deploy Clone and Warp
-        console.log("");
-        console.log("Step 3: Deploying Clone and Warp...");
-        clone = new Clone(address(agentFactory));
-        console.log("  Clone:", address(clone));
-        
-        warp = new Warp(address(agentFactory), TREASURY);
-        console.log("  Warp:", address(warp));
+        if (!delegation.isInitialized()) {
+            delegation.initialize(address(agentManager));
+            console.log("Delegation initialized");
+        } else {
+            console.log("Delegation already initialized");
+        }
 
-        // Step 4: Deploy Manowar (ERC-7401)
-        console.log("");
-        console.log("Step 4: Deploying Manowar...");
-        manowar = new Manowar(address(agentFactory), ACTIVE_USDC);
-        console.log("  Manowar:", address(manowar));
-
-        // Step 5: Deploy RFA
-        console.log("");
-        console.log("Step 5: Deploying RFA...");
-        rfa = new RFA(ACTIVE_USDC, address(manowar), address(agentFactory));
-        console.log("  RFA:", address(rfa));
-
-        // Step 6: Deploy Lease
-        console.log("");
-        console.log("Step 6: Deploying Lease...");
-        lease = new Lease(ACTIVE_USDC, address(manowar));
-        console.log("  Lease:", address(lease));
-
-        // Step 7: Deploy Delegation
-        console.log("");
-        console.log("Step 7: Deploying Delegation...");
-        delegation = new Delegation();
-        console.log("  Delegation:", address(delegation));
-
-        // Step 8: Deploy AgentManager
-        console.log("");
-        console.log("Step 8: Deploying AgentManager...");
-        agentManager = new AgentManager();
-        console.log("  AgentManager:", address(agentManager));
-
-        // Step 9: Deploy Utils helper
-        console.log("");
-        console.log("Step 9: Deploying Utils helper...");
-        utils = new Utils(address(agentManager), address(agentFactory), address(manowar));
-        console.log("  Utils:", address(utils));
-
-        // Step 10: Initialize and link contracts
-        console.log("");
-        console.log("Step 10: Initializing ecosystem...");
-        
-        // Initialize Delegation
-        delegation.initialize(address(agentManager));
-        console.log("  Delegation initialized");
-
-        // Initialize AgentManager with all contracts
         agentManager.initializeEcosystem(
             address(delegation),
             address(agentFactory),
@@ -178,29 +186,23 @@ contract Compose is Script {
             address(royalties),
             address(distributor)
         );
-        console.log("  AgentManager ecosystem initialized");
+        console.log("AgentManager ecosystem initialized");
 
-        // Authorize contracts in AgentFactory
         agentFactory.authorizeConsumer(address(clone));
         agentFactory.authorizeConsumer(address(warp));
         agentFactory.authorizeConsumer(address(manowar));
-        console.log("  AgentFactory consumers authorized");
+        console.log("AgentFactory consumers authorized");
 
-        // Set RFA contract in Manowar
         manowar.setRFAContract(address(rfa));
         manowar.setLeaseContract(address(lease));
         manowar.setDistributor(address(distributor));
-        manowar.setTreasury(TREASURY);
-        console.log("  Manowar RFA/Lease/Distributor/Treasury contracts set");
+        manowar.setTreasury(treasury);
+        console.log("Manowar dependencies configured");
 
         vm.stopBroadcast();
 
-        // Print deployment summary
         console.log("");
         console.log("=== Deployment Complete ===");
-        console.log("");
-        console.log("Contract Addresses:");
-        console.log("-------------------");
         console.log("AgentFactory:", address(agentFactory));
         console.log("Clone:", address(clone));
         console.log("Warp:", address(warp));
@@ -212,35 +214,40 @@ contract Compose is Script {
         console.log("Delegation:", address(delegation));
         console.log("AgentManager:", address(agentManager));
         console.log("Utils:", address(utils));
+    }
+
+    function _deployDeterministic(
+        string memory contractName,
+        bytes32 salt,
+        bytes memory initCode
+    ) internal returns (address predictedAddress) {
+        bytes32 bytecodeHash = keccak256(initCode);
+        predictedAddress = computeCreate2Address(DETERMINISTIC_PROXY, salt, bytecodeHash);
+
         console.log("");
-        console.log("Save these addresses for frontend integration!");
+        console.log(contractName);
+        console.log("  Salt:");
+        console.logBytes32(salt);
+        console.log("  Predicted:", predictedAddress);
+
+        if (predictedAddress.code.length > 0) {
+            console.log("  Status: already deployed");
+            return predictedAddress;
+        }
+
+        bytes memory callData = abi.encodePacked(salt, initCode);
+        (bool success,) = DETERMINISTIC_PROXY.call(callData);
+        require(success, "Deterministic deployment failed");
+        require(predictedAddress.code.length > 0, "No code at predicted address");
+        console.log("  Status: deployed");
     }
 
-    // =============================================================================
-    // Individual Deployment Functions (for testing/upgrades)
-    // =============================================================================
-
-    function deployAgentFactory() external returns (address) {
-        uint256 deployerPrivateKey = uint256(vm.envBytes32("DEPLOYER_KEY"));
-        vm.startBroadcast(deployerPrivateKey);
-        agentFactory = new AgentFactory();
-        vm.stopBroadcast();
-        return address(agentFactory);
-    }
-
-    function deployManowar(address _agentFactory, address _paymentToken) external returns (address) {
-        uint256 deployerPrivateKey = uint256(vm.envBytes32("DEPLOYER_KEY"));
-        vm.startBroadcast(deployerPrivateKey);
-        manowar = new Manowar(_agentFactory, _paymentToken);
-        vm.stopBroadcast();
-        return address(manowar);
-    }
-
-    function deployRFA(address _manowar, address _agentFactory) external returns (address) {
-        uint256 deployerPrivateKey = uint256(vm.envBytes32("DEPLOYER_KEY"));
-        vm.startBroadcast(deployerPrivateKey);
-        rfa = new RFA(ACTIVE_USDC, _manowar, _agentFactory);
-        vm.stopBroadcast();
-        return address(rfa);
+    function computeCreate2Address(
+        address deployer,
+        bytes32 salt,
+        bytes32 bytecodeHash
+    ) internal pure returns (address) {
+        bytes32 hash = keccak256(abi.encodePacked(hex"ff", deployer, salt, bytecodeHash));
+        return address(uint160(uint256(hash)));
     }
 }
