@@ -25,6 +25,9 @@ import {IDistributor} from "../src/compose/interfaces/Iroyalties.sol";
  * @dev Tests ALL public/external functions in ALL contracts
  */
 contract ComposeTest is Test {
+    uint256 internal constant SUPPORTED_CHAIN_ID = 338;
+    address internal constant SUPPORTED_USDC = 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0;
+
     // =============================================================================
     // Test Contracts
     // =============================================================================
@@ -56,8 +59,12 @@ contract ComposeTest is Test {
     // =============================================================================
 
     function setUp() public {
-        // Deploy mock USDC
-        usdc = new MockERC20("USD Coin", "USDC", 6);
+        vm.chainId(SUPPORTED_CHAIN_ID);
+
+        // Bind mock USDC code to the chain-mapped USDC address used by compose contracts.
+        MockERC20 usdcImpl = new MockERC20("USD Coin", "USDC", 6);
+        vm.etch(SUPPORTED_USDC, address(usdcImpl).code);
+        usdc = MockERC20(SUPPORTED_USDC);
         
         // Mint USDC to test users
         usdc.mint(alice, 1_000_000 * 10**6); // 1M USDC
@@ -65,29 +72,29 @@ contract ComposeTest is Test {
         usdc.mint(charlie, 1_000_000 * 10**6);
 
         // Deploy support contracts
-        royalties = new Royalties(treasury, 500); // 5% default royalty
-        distributor = new Distributor(treasury);
+        royalties = new Royalties(treasury, 500, address(this)); // 5% default royalty
+        distributor = new Distributor(treasury, address(this));
 
         // Deploy AgentFactory
-        agentFactory = new AgentFactory();
+        agentFactory = new AgentFactory(address(this));
 
         // Deploy Clone and Warp
         clone = new Clone(address(agentFactory));
         warp = new Warp(address(agentFactory), treasury);
 
-        // Deploy Manowar (with USDC payment token)
-        manowar = new Manowar(address(agentFactory), address(usdc));
+        // Deploy Manowar (with chain-aware USDC payment token)
+        manowar = new Manowar(address(agentFactory), address(this));
 
         // Deploy RFA and Lease
-        rfa = new RFA(address(usdc), address(manowar), address(agentFactory));
-        lease = new Lease(address(usdc), address(manowar));
+        rfa = new RFA(address(manowar), address(agentFactory), address(this));
+        lease = new Lease(address(manowar), address(this));
 
         // Deploy Delegation and AgentManager
         delegation = new Delegation();
-        agentManager = new AgentManager();
+        agentManager = new AgentManager(address(this));
 
         // Deploy Utils
-        utils = new Utils(address(agentManager), address(agentFactory), address(manowar));
+        utils = new Utils(address(agentManager), address(agentFactory), address(manowar), address(this));
 
         // Initialize
         delegation.initialize(address(agentManager));
@@ -742,6 +749,21 @@ contract ComposeTest is Test {
         assertEq(manowar.MAX_LEASE_PERCENT(), 20);
     }
 
+    function test_USDCResolution_AcrossSupportedChains() public {
+        _assertUSDCResolutionForChain(338, 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0);
+        _assertUSDCResolutionForChain(43113, 0x5425890298aed601595a70AB815c96711a31Bc65);
+        _assertUSDCResolutionForChain(421614, 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d);
+    }
+
+    function test_Manowar_UnsupportedChainReverts() public {
+        uint256 unsupportedChainId = 777777;
+        vm.chainId(unsupportedChainId);
+
+        AgentFactory localFactory = new AgentFactory(address(this));
+        vm.expectRevert(abi.encodeWithSelector(Manowar.UnsupportedChain.selector, unsupportedChainId));
+        new Manowar(address(localFactory), address(this));
+    }
+
     function test_Manowar_ERC7401_ChildrenOf() public {
         vm.startPrank(alice);
         uint256 agent1 = agentFactory.mintAgent(keccak256("c1"), 100, 500000, false, "ipfs://1");
@@ -1086,6 +1108,15 @@ contract ComposeTest is Test {
         assertEq(rfa.getUSDC(), address(usdc));
     }
 
+    function test_RFA_UnsupportedChainReverts() public {
+        uint256 unsupportedChainId = 777777;
+        vm.chainId(unsupportedChainId);
+
+        AgentFactory localFactory = new AgentFactory(address(this));
+        vm.expectRevert(abi.encodeWithSelector(RFA.UnsupportedChain.selector, unsupportedChainId));
+        new RFA(address(0x1234), address(localFactory), address(this));
+    }
+
     // =============================================================================
     // Lease Tests - ALL Functions
     // =============================================================================
@@ -1239,6 +1270,27 @@ contract ComposeTest is Test {
 
     function test_Lease_GetUSDC() public {
         assertEq(lease.getUSDC(), address(usdc));
+    }
+
+    function test_Lease_UnsupportedChainReverts() public {
+        uint256 unsupportedChainId = 777777;
+        vm.chainId(unsupportedChainId);
+
+        vm.expectRevert(abi.encodeWithSelector(Lease.UnsupportedChain.selector, unsupportedChainId));
+        new Lease(address(0x1234), address(this));
+    }
+
+    function _assertUSDCResolutionForChain(uint256 chainId, address expectedUSDC) internal {
+        vm.chainId(chainId);
+
+        AgentFactory localFactory = new AgentFactory(address(this));
+        Manowar localManowar = new Manowar(address(localFactory), address(this));
+        RFA localRfa = new RFA(address(localManowar), address(localFactory), address(this));
+        Lease localLease = new Lease(address(localManowar), address(this));
+
+        assertEq(address(localManowar.paymentToken()), expectedUSDC);
+        assertEq(localRfa.getUSDC(), expectedUSDC);
+        assertEq(localLease.getUSDC(), expectedUSDC);
     }
 
     // =============================================================================
