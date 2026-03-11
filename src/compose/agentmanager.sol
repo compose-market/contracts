@@ -12,7 +12,7 @@ import {IDelegation} from "./interfaces/Idelegation.sol";
  * Architecture:
  * - AgentManager (this) → Proxy that delegates feature logic
  * - Delegation → Routes to Clone, Warp, Lease modules
- * - Registered contracts: AgentFactory, Manowar, RFA, etc.
+ * - Registered contracts: AgentFactory, Workflow, RFA, etc.
  */
 contract AgentManager is IAgentManager {
     // =============================================================================
@@ -20,7 +20,7 @@ contract AgentManager is IAgentManager {
     // =============================================================================
 
     bytes32 public constant AGENT_FACTORY = keccak256("AGENT_FACTORY");
-    bytes32 public constant MANOWAR = keccak256("MANOWAR");
+    bytes32 public constant WORKFLOW = keccak256("WORKFLOW");
     bytes32 public constant CLONE = keccak256("CLONE");
     bytes32 public constant WARP = keccak256("WARP");
     bytes32 public constant LEASE = keccak256("LEASE");
@@ -179,12 +179,12 @@ contract AgentManager is IAgentManager {
      * @notice Create a lease via delegation
      */
     function createLease(
-        uint256 manowarId,
+        uint256 workflowId,
         uint256 duration
     ) external whenNotPaused returns (uint256 leaseId) {
         require(_delegation != address(0), "Delegation not set");
         
-        leaseId = IDelegation(_delegation).delegateCreateLease(manowarId, duration);
+        leaseId = IDelegation(_delegation).delegateCreateLease(workflowId, duration);
     }
 
     /**
@@ -204,7 +204,7 @@ contract AgentManager is IAgentManager {
      * @notice Initialize all modules at once
      * @param delegation Delegation contract address
      * @param agentFactory AgentFactory contract address
-     * @param manowar Manowar contract address
+     * @param workflow Workflow contract address
      * @param clone Clone contract address
      * @param warp Warp contract address
      * @param lease Lease contract address
@@ -215,7 +215,7 @@ contract AgentManager is IAgentManager {
     function initializeEcosystem(
         address delegation,
         address agentFactory,
-        address manowar,
+        address workflow,
         address clone,
         address warp,
         address lease,
@@ -229,7 +229,7 @@ contract AgentManager is IAgentManager {
 
         // Register all contracts
         _contracts[AGENT_FACTORY] = agentFactory;
-        _contracts[MANOWAR] = manowar;
+        _contracts[WORKFLOW] = workflow;
         _contracts[CLONE] = clone;
         _contracts[WARP] = warp;
         _contracts[LEASE] = lease;
@@ -238,7 +238,7 @@ contract AgentManager is IAgentManager {
         _contracts[DISTRIBUTOR] = distributor;
 
         emit ContractRegistered(AGENT_FACTORY, agentFactory);
-        emit ContractRegistered(MANOWAR, manowar);
+        emit ContractRegistered(WORKFLOW, workflow);
         emit ContractRegistered(CLONE, clone);
         emit ContractRegistered(WARP, warp);
         emit ContractRegistered(LEASE, lease);
@@ -280,10 +280,10 @@ contract AgentManager is IAgentManager {
     }
 
     /**
-     * @notice Get Manowar address
+     * @notice Get Workflow address
      */
-    function getManowar() external view returns (address) {
-        return _contracts[MANOWAR];
+    function getWorkflow() external view returns (address) {
+        return _contracts[WORKFLOW];
     }
 
     /**
@@ -298,7 +298,7 @@ contract AgentManager is IAgentManager {
      */
     function getAllContracts() external view returns (
         address agentFactory,
-        address manowar,
+        address workflow,
         address clone,
         address warp,
         address lease,
@@ -308,7 +308,7 @@ contract AgentManager is IAgentManager {
     ) {
         return (
             _contracts[AGENT_FACTORY],
-            _contracts[MANOWAR],
+            _contracts[WORKFLOW],
             _contracts[CLONE],
             _contracts[WARP],
             _contracts[LEASE],

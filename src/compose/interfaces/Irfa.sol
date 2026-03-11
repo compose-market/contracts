@@ -10,7 +10,7 @@ interface IRFA {
     /// @notice Emitted when an RFA is created
     event RFACreated(
         uint256 indexed rfaId,
-        uint256 indexed manowarId,
+        uint256 indexed workflowId,
         address indexed publisher,
         uint256 offerAmount,
         string title
@@ -55,7 +55,7 @@ interface IRFA {
 
     /**
      * @notice RFA request data structure
-     * @param manowarId The Manowar this RFA is for
+     * @param workflowId The Workflow this RFA is for
      * @param title Request title
      * @param description Detailed description
      * @param requiredSkills Array of required skill IDs
@@ -67,7 +67,7 @@ interface IRFA {
      * @param agentCreator The accepted agent's creator (if fulfilled)
      */
     struct RFARequest {
-        uint256 manowarId;
+        uint256 workflowId;
         string title;
         string description;
         bytes32[] requiredSkills;
@@ -93,7 +93,7 @@ interface IRFA {
 
     /**
      * @notice Create a new RFA with USDC escrow
-     * @param manowarId The Manowar this RFA is for
+     * @param workflowId The Workflow this RFA is for
      * @param title Request title
      * @param description Detailed description
      * @param requiredSkills Array of required skill IDs (bytes32)
@@ -101,7 +101,7 @@ interface IRFA {
      * @return rfaId The newly created RFA ID
      */
     function createRFA(
-        uint256 manowarId,
+        uint256 workflowId,
         string calldata title,
         string calldata description,
         bytes32[] calldata requiredSkills,
@@ -158,11 +158,11 @@ interface IRFA {
     function getOpenRFAs() external view returns (uint256[] memory rfaIds);
 
     /**
-     * @notice Get RFAs for a specific Manowar
-     * @param manowarId The Manowar ID
+     * @notice Get RFAs for a specific Workflow
+     * @param workflowId The Workflow ID
      * @return rfaIds Array of RFA IDs
      */
-    function getRFAsForManowar(uint256 manowarId) external view returns (uint256[] memory rfaIds);
+    function getRFAsForWorkflow(uint256 workflowId) external view returns (uint256[] memory rfaIds);
 
     /**
      * @notice Get RFAs published by an address

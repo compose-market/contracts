@@ -13,7 +13,7 @@ import {IRFA} from "./interfaces/Irfa.sol";
  * 2. Agent creators submit their agents for the RFA
  * 3. Publisher reviews submissions and clicks "Accept Agent"
  * 4. Escrow released to accepted agent creator
- * 5. Manowar becomes visible in marketplace (RFA resolved)
+ * 5. Workflow becomes visible in marketplace (RFA resolved)
  */
 contract RFA is IRFA {
     error UnsupportedChain(uint256 chainId);
@@ -25,8 +25,8 @@ contract RFA is IRFA {
     /// @notice USDC token contract
     IERC20 public immutable usdc;
 
-    /// @notice Manowar contract reference
-    address public manowarContract;
+    /// @notice Workflow contract reference
+    address public workflowContract;
 
     /// @notice AgentFactory reference for verifying agents
     address public agentFactory;
@@ -52,8 +52,8 @@ contract RFA is IRFA {
     /// @notice Index in _openRFAs for removal
     mapping(uint256 => uint256) private _openRFAIndex;
 
-    /// @notice RFAs by Manowar ID
-    mapping(uint256 => uint256[]) private _rfasByManowar;
+    /// @notice RFAs by Workflow ID
+    mapping(uint256 => uint256[]) private _rfasByWorkflow;
 
     /// @notice RFAs by publisher
     mapping(address => uint256[]) private _rfasByPublisher;
@@ -68,8 +68,8 @@ contract RFA is IRFA {
     // Constructor
     // =============================================================================
 
-    constructor(address _manowarContract, address _agentFactory, address _adminAddress) {
-        require(_manowarContract != address(0), "Zero Manowar address");
+    constructor(address _workflowContract, address _agentFactory, address _adminAddress) {
+        require(_workflowContract != address(0), "Zero Workflow address");
         require(_agentFactory != address(0), "Zero AgentFactory address");
         require(_adminAddress != address(0), "Zero admin");
 
@@ -79,16 +79,16 @@ contract RFA is IRFA {
         }
         
         usdc = IERC20(usdcAddress);
-        manowarContract = _manowarContract;
+        workflowContract = _workflowContract;
         agentFactory = _agentFactory;
         _admin = _adminAddress;
         _nextRFAId = 1;
     }
 
     function _getUSDCAddress(uint256 chainId) internal pure returns (address) {
-        if (chainId == 338) return 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0; // Cronos Testnet
         if (chainId == 43113) return 0x5425890298aed601595a70AB815c96711a31Bc65; // Avalanche Fuji
         if (chainId == 421614) return 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d; // Arbitrum Sepolia
+        if (chainId == 84532) return 0x036CbD53842c5426634e7929541eC2318f3dCF7e; // Base Sepolia
         return address(0);
     }
 
@@ -98,7 +98,7 @@ contract RFA is IRFA {
 
     /// @inheritdoc IRFA
     function createRFA(
-        uint256 manowarId,
+        uint256 workflowId,
         string calldata title,
         string calldata description,
         bytes32[] calldata requiredSkills,
@@ -116,7 +116,7 @@ contract RFA is IRFA {
 
         // Store RFA data
         _rfas[rfaId] = RFARequest({
-            manowarId: manowarId,
+            workflowId: workflowId,
             title: title,
             description: description,
             requiredSkills: requiredSkills,
@@ -135,14 +135,14 @@ contract RFA is IRFA {
         _openRFAIndex[rfaId] = _openRFAs.length;
         _openRFAs.push(rfaId);
 
-        // Track by Manowar and publisher
-        _rfasByManowar[manowarId].push(rfaId);
+        // Track by Workflow and publisher
+        _rfasByWorkflow[workflowId].push(rfaId);
         _rfasByPublisher[msg.sender].push(rfaId);
 
-        // Notify Manowar contract to attach RFA
-        _attachRFAToManowar(manowarId, rfaId);
+        // Notify Workflow contract to attach RFA
+        _attachRFAToWorkflow(workflowId, rfaId);
 
-        emit RFACreated(rfaId, manowarId, msg.sender, offerAmount, title);
+        emit RFACreated(rfaId, workflowId, msg.sender, offerAmount, title);
     }
 
     /// @inheritdoc IRFA
@@ -203,8 +203,8 @@ contract RFA is IRFA {
         bool success = usdc.transfer(agentCreator, rfa.offerAmount);
         if (!success) revert TransferFailed();
 
-        // Notify Manowar contract to resolve RFA
-        _resolveRFAOnManowar(rfa.manowarId);
+        // Notify Workflow contract to resolve RFA
+        _resolveRFAOnWorkflow(rfa.workflowId);
 
         emit RFAFulfilled(rfaId, agentId, agentCreator, rfa.offerAmount);
     }
@@ -229,8 +229,8 @@ contract RFA is IRFA {
         bool success = usdc.transfer(msg.sender, rfa.offerAmount);
         if (!success) revert TransferFailed();
 
-        // Notify Manowar contract to resolve RFA (removes RFA flag)
-        _resolveRFAOnManowar(rfa.manowarId);
+        // Notify Workflow contract to resolve RFA (removes RFA flag)
+        _resolveRFAOnWorkflow(rfa.workflowId);
 
         emit RFACancelled(rfaId, msg.sender, rfa.offerAmount);
     }
@@ -257,8 +257,8 @@ contract RFA is IRFA {
     }
 
     /// @inheritdoc IRFA
-    function getRFAsForManowar(uint256 manowarId) external view returns (uint256[] memory) {
-        return _rfasByManowar[manowarId];
+    function getRFAsForWorkflow(uint256 workflowId) external view returns (uint256[] memory) {
+        return _rfasByWorkflow[workflowId];
     }
 
     /// @inheritdoc IRFA
@@ -294,18 +294,18 @@ contract RFA is IRFA {
         delete _openRFAIndex[rfaId];
     }
 
-    function _attachRFAToManowar(uint256 manowarId, uint256 rfaId) internal {
-        // Call Manowar.attachRFA(manowarId, rfaId)
-        (bool success,) = manowarContract.call(
-            abi.encodeWithSignature("attachRFA(uint256,uint256)", manowarId, rfaId)
+    function _attachRFAToWorkflow(uint256 workflowId, uint256 rfaId) internal {
+        // Call Workflow.attachRFA(workflowId, rfaId)
+        (bool success,) = workflowContract.call(
+            abi.encodeWithSignature("attachRFA(uint256,uint256)", workflowId, rfaId)
         );
         require(success, "Failed to attach RFA");
     }
 
-    function _resolveRFAOnManowar(uint256 manowarId) internal {
-        // Call Manowar.resolveRFA(manowarId)
-        (bool success,) = manowarContract.call(
-            abi.encodeWithSignature("resolveRFA(uint256)", manowarId)
+    function _resolveRFAOnWorkflow(uint256 workflowId) internal {
+        // Call Workflow.resolveRFA(workflowId)
+        (bool success,) = workflowContract.call(
+            abi.encodeWithSignature("resolveRFA(uint256)", workflowId)
         );
         require(success, "Failed to resolve RFA");
     }
@@ -333,9 +333,9 @@ contract RFA is IRFA {
     // Admin Functions
     // =============================================================================
 
-    function setManowarContract(address _manowar) external {
+    function setWorkflowContract(address _workflow) external {
         require(msg.sender == _admin, "Not admin");
-        manowarContract = _manowar;
+        workflowContract = _workflow;
     }
 
     function setAgentFactory(address _factory) external {

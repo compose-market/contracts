@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 /**
  * @title IRoyalties
  * @notice Interface for EIP-2981 royalty distribution
- * @dev Handles royalty calculations and distributions for agents and Manowars
+ * @dev Handles royalty calculations and distributions for agents and workflows
  */
 interface IRoyalties {
     /// @notice Emitted when royalty info is set

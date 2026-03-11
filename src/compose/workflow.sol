@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {IManowar} from "./interfaces/Imanowar.sol";
+import {IWorkflow} from "./interfaces/Iworkflow.sol";
 import {IERC7401} from "./interfaces/IERC7401.sol";
 import {IAgentFactory} from "./interfaces/Iagentfactory.sol";
 import {IDistributor} from "./interfaces/Iroyalties.sol";
@@ -31,7 +31,7 @@ interface IERC3009 {
 }
 
 /**
- * @title Manowar
+ * @title Workflow
  * @notice ERC-7401 Nestable NFT for composing AI agent workflows
  * @dev Allows nesting ERC-8004 agents into workflow NFTs with coordinator support
  * 
@@ -42,7 +42,7 @@ interface IERC3009 {
  * - RFA (Request-For-Agent) integration
  * - x402 pricing for pay-per-use
  */
-contract Manowar is IManowar {
+contract Workflow is IWorkflow {
     // =============================================================================
     // Constants
     // =============================================================================
@@ -66,14 +66,14 @@ contract Manowar is IManowar {
     /// @notice Treasury wallet for platform fees
     address public treasury;
 
-    /// @notice Total Manowars minted
-    uint256 private _totalManowars;
+    /// @notice Total Workflows minted
+    uint256 private _totalWorkflows;
 
-    /// @notice Next Manowar ID
-    uint256 private _nextManowarId;
+    /// @notice Next Workflow ID
+    uint256 private _nextWorkflowId;
 
-    /// @notice Manowar data storage
-    mapping(uint256 => ManowarData) private _manowars;
+    /// @notice Workflow data storage
+    mapping(uint256 => WorkflowData) private _workflows;
 
     /// @notice ERC-721 ownership
     mapping(uint256 => address) private _owners;
@@ -87,10 +87,10 @@ contract Manowar is IManowar {
     /// @notice ERC-721 operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
-    /// @notice Nested children: manowarId => Child[]
+    /// @notice Nested children: workflowId => Child[]
     mapping(uint256 => Child[]) private _children;
 
-    /// @notice Child index lookup: manowarId => childContract => childId => index+1 (0 means not nested)
+    /// @notice Child index lookup: workflowId => childContract => childId => index+1 (0 means not nested)
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) private _childIndex;
 
     /// @notice Pending children proposals
@@ -99,20 +99,20 @@ contract Manowar is IManowar {
     /// @notice Parent lookup: childContract => childId => (hasParent, parentContract, parentId)
     mapping(address => mapping(uint256 => ParentInfo)) private _parentInfo;
 
-    /// @notice Manowars by creator
-    mapping(address => uint256[]) private _manowarsByCreator;
+    /// @notice Workflows by creator
+    mapping(address => uint256[]) private _workflowsByCreator;
 
-    /// @notice Complete Manowars (no active RFA)
-    uint256[] private _completeManowars;
+    /// @notice Complete Workflows (no active RFA)
+    uint256[] private _completeWorkflows;
 
-    /// @notice Manowars with active RFA
-    uint256[] private _manowarsWithRFA;
+    /// @notice Workflows with active RFA
+    uint256[] private _workflowsWithRFA;
 
-    /// @notice Index in _completeManowars (for removal)
-    mapping(uint256 => uint256) private _completeManowarIndex;
+    /// @notice Index in _completeWorkflows (for removal)
+    mapping(uint256 => uint256) private _completeWorkflowIndex;
 
-    /// @notice Index in _manowarsWithRFA (for removal)
-    mapping(uint256 => uint256) private _rfaManowarIndex;
+    /// @notice Index in _workflowsWithRFA (for removal)
+    mapping(uint256 => uint256) private _rfaWorkflowIndex;
 
     /// @notice Authorized RFA contract
     address private _rfaContract;
@@ -151,13 +151,13 @@ contract Manowar is IManowar {
         _;
     }
 
-    modifier onlyOwner(uint256 manowarId) {
-        if (_owners[manowarId] != msg.sender) revert NotManowarOwner(manowarId);
+    modifier onlyOwner(uint256 workflowId) {
+        if (_owners[workflowId] != msg.sender) revert NotWorkflowOwner(workflowId);
         _;
     }
 
-    modifier manowarExists(uint256 manowarId) {
-        if (_owners[manowarId] == address(0)) revert ManowarNotFound(manowarId);
+    modifier workflowExists(uint256 workflowId) {
+        if (_owners[workflowId] == address(0)) revert WorkflowNotFound(workflowId);
         _;
     }
 
@@ -182,32 +182,32 @@ contract Manowar is IManowar {
         agentFactory = IAgentFactory(_agentFactory);
         paymentToken = IERC20(usdcAddress);
         _admin = _adminAddress;
-        _nextManowarId = 1;
+        _nextWorkflowId = 1;
     }
 
     function _getUSDCAddress(uint256 chainId) internal pure returns (address) {
-        if (chainId == 338) return 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0; // Cronos Testnet
         if (chainId == 43113) return 0x5425890298aed601595a70AB815c96711a31Bc65; // Avalanche Fuji
         if (chainId == 421614) return 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d; // Arbitrum Sepolia
+        if (chainId == 84532) return 0x036CbD53842c5426634e7929541eC2318f3dCF7e; // Base Sepolia
         return address(0);
     }
 
     // =============================================================================
-    // IManowar Implementation
+    // IWorkflow Implementation
     // =============================================================================
 
-    /// @inheritdoc IManowar
-    function mintManowar(
+    /// @inheritdoc IWorkflow
+    function mintWorkflow(
         MintParams calldata params,
         uint256[] calldata agentIds
-    ) external returns (uint256 manowarId) {
+    ) external returns (uint256 workflowId) {
         if (params.units == 0) revert InvalidUnits();
         if (params.leaseEnabled && params.leasePercent > MAX_LEASE_PERCENT) {
             revert InvalidLeasePercent();
         }
 
-        manowarId = _nextManowarId++;
-        _totalManowars++;
+        workflowId = _nextWorkflowId++;
+        _totalWorkflows++;
 
         // Calculate total license price from agents and build creator arrays for distribution
         uint256 totalPrice = 0;
@@ -256,12 +256,12 @@ contract Manowar is IManowar {
             }
         }
 
-        // Store Manowar data
-        _manowars[manowarId] = ManowarData({
+        // Store Workflow data
+        _workflows[workflowId] = WorkflowData({
             title: params.title,
             description: params.description,
             banner: params.banner,
-            manowarCardUri: params.manowarCardUri,
+            workflowCardUri: params.workflowCardUri,
             totalPrice: totalPrice,
             units: params.units,
             unitsMinted: 0,
@@ -276,25 +276,25 @@ contract Manowar is IManowar {
         });
 
         // Mint the NFT
-        _mint(msg.sender, manowarId);
+        _mint(msg.sender, workflowId);
 
         // Track by creator
-        _manowarsByCreator[msg.sender].push(manowarId);
+        _workflowsByCreator[msg.sender].push(workflowId);
 
         // Add to complete list (no RFA initially)
-        _completeManowarIndex[manowarId] = _completeManowars.length;
-        _completeManowars.push(manowarId);
+        _completeWorkflowIndex[workflowId] = _completeWorkflows.length;
+        _completeWorkflows.push(workflowId);
 
         // Nest the agents
         for (uint256 i = 0; i < agentIds.length; i++) {
-            _nestAgent(manowarId, agentIds[i]);
+            _nestAgent(workflowId, agentIds[i]);
         }
 
-        emit ManowarMinted(manowarId, msg.sender, params.title, 0, params.units);
+        emit WorkflowMinted(workflowId, msg.sender, params.title, 0, params.units);
     }
 
     /**
-     * @notice Mint a Manowar workflow using ERC-3009 gasless authorization
+     * @notice Mint a Workflow workflow using ERC-3009 gasless authorization
      * @dev Allows minting with a single off-chain signature, no approve step needed
      * @param params Minting parameters (title, description, etc.)
      * @param agentIds Array of agent IDs to nest
@@ -304,9 +304,9 @@ contract Manowar is IManowar {
      * @param v ECDSA recovery id
      * @param r ECDSA signature r component
      * @param s ECDSA signature s component
-     * @return manowarId The ID of the newly minted Manowar
+     * @return workflowId The ID of the newly minted Workflow
      */
-    function mintManowarWithAuth(
+    function mintWorkflowWithAuth(
         MintParams calldata params,
         uint256[] calldata agentIds,
         address payer,
@@ -316,14 +316,14 @@ contract Manowar is IManowar {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external returns (uint256 manowarId) {
+    ) external returns (uint256 workflowId) {
         if (params.units == 0) revert InvalidUnits();
         if (params.leaseEnabled && params.leasePercent > MAX_LEASE_PERCENT) {
             revert InvalidLeasePercent();
         }
 
-        manowarId = _nextManowarId++;
-        _totalManowars++;
+        workflowId = _nextWorkflowId++;
+        _totalWorkflows++;
 
         // Calculate total license price from agents and build creator arrays
         uint256 totalPrice = 0;
@@ -376,12 +376,12 @@ contract Manowar is IManowar {
             }
         }
 
-        // Store Manowar data
-        _manowars[manowarId] = ManowarData({
+        // Store Workflow data
+        _workflows[workflowId] = WorkflowData({
             title: params.title,
             description: params.description,
             banner: params.banner,
-            manowarCardUri: params.manowarCardUri,
+            workflowCardUri: params.workflowCardUri,
             totalPrice: totalPrice,
             units: params.units,
             unitsMinted: 0,
@@ -396,213 +396,213 @@ contract Manowar is IManowar {
         });
 
         // Mint the NFT to the payer
-        _mint(payer, manowarId);
+        _mint(payer, workflowId);
 
         // Track by creator
-        _manowarsByCreator[payer].push(manowarId);
+        _workflowsByCreator[payer].push(workflowId);
 
         // Add to complete list (no RFA initially)
-        _completeManowarIndex[manowarId] = _completeManowars.length;
-        _completeManowars.push(manowarId);
+        _completeWorkflowIndex[workflowId] = _completeWorkflows.length;
+        _completeWorkflows.push(workflowId);
 
         // Nest the agents
         for (uint256 i = 0; i < agentIds.length; i++) {
-            _nestAgent(manowarId, agentIds[i]);
+            _nestAgent(workflowId, agentIds[i]);
         }
 
-        emit ManowarMinted(manowarId, payer, params.title, 0, params.units);
+        emit WorkflowMinted(workflowId, payer, params.title, 0, params.units);
     }
 
-    /// @inheritdoc IManowar
-    function getManowarData(uint256 manowarId) external view manowarExists(manowarId) returns (ManowarData memory) {
-        return _manowars[manowarId];
+    /// @inheritdoc IWorkflow
+    function getWorkflowData(uint256 workflowId) external view workflowExists(workflowId) returns (WorkflowData memory) {
+        return _workflows[workflowId];
     }
 
-    /// @inheritdoc IManowar
-    function addAgent(uint256 manowarId, uint256 agentId) external onlyOwner(manowarId) manowarExists(manowarId) {
-        _nestAgent(manowarId, agentId);
+    /// @inheritdoc IWorkflow
+    function addAgent(uint256 workflowId, uint256 agentId) external onlyOwner(workflowId) workflowExists(workflowId) {
+        _nestAgent(workflowId, agentId);
         
         // Update total price with license price
         IAgentFactory.AgentData memory agentData = agentFactory.getAgentData(agentId);
-        _manowars[manowarId].totalPrice += agentData.licensePrice;
+        _workflows[workflowId].totalPrice += agentData.licensePrice;
         
-        emit AgentAdded(manowarId, agentId);
+        emit AgentAdded(workflowId, agentId);
     }
 
-    /// @inheritdoc IManowar
-    function removeAgent(uint256 manowarId, uint256 agentId) external onlyOwner(manowarId) manowarExists(manowarId) {
+    /// @inheritdoc IWorkflow
+    function removeAgent(uint256 workflowId, uint256 agentId) external onlyOwner(workflowId) workflowExists(workflowId) {
         address agentFactoryAddr = address(agentFactory);
-        uint256 idx = _childIndex[manowarId][agentFactoryAddr][agentId];
-        if (idx == 0) revert AgentNotInManowar(manowarId, agentId);
+        uint256 idx = _childIndex[workflowId][agentFactoryAddr][agentId];
+        if (idx == 0) revert AgentNotInWorkflow(workflowId, agentId);
 
         // Update total price with license price
         IAgentFactory.AgentData memory agentData = agentFactory.getAgentData(agentId);
-        _manowars[manowarId].totalPrice -= agentData.licensePrice;
+        _workflows[workflowId].totalPrice -= agentData.licensePrice;
 
         // Revoke the license in AgentFactory (bi-directional tracking)
-        try agentFactory.revokeLicense(agentId, address(this), manowarId) {} catch {}
+        try agentFactory.revokeLicense(agentId, address(this), workflowId) {} catch {}
 
         // Remove from children array (swap and pop)
-        uint256 lastIdx = _children[manowarId].length - 1;
+        uint256 lastIdx = _children[workflowId].length - 1;
         if (idx - 1 != lastIdx) {
-            Child memory lastChild = _children[manowarId][lastIdx];
-            _children[manowarId][idx - 1] = lastChild;
-            _childIndex[manowarId][lastChild.contractAddress][lastChild.tokenId] = idx;
+            Child memory lastChild = _children[workflowId][lastIdx];
+            _children[workflowId][idx - 1] = lastChild;
+            _childIndex[workflowId][lastChild.contractAddress][lastChild.tokenId] = idx;
         }
-        _children[manowarId].pop();
-        delete _childIndex[manowarId][agentFactoryAddr][agentId];
+        _children[workflowId].pop();
+        delete _childIndex[workflowId][agentFactoryAddr][agentId];
 
         // Clear parent info
         delete _parentInfo[agentFactoryAddr][agentId];
 
-        emit AgentRemoved(manowarId, agentId);
-        emit ChildUnnested(manowarId, agentId, agentFactoryAddr);
+        emit AgentRemoved(workflowId, agentId);
+        emit ChildUnnested(workflowId, agentId, agentFactoryAddr);
     }
 
-    /// @inheritdoc IManowar
-    function getAgents(uint256 manowarId) external view manowarExists(manowarId) returns (uint256[] memory agentIds) {
-        Child[] storage children = _children[manowarId];
+    /// @inheritdoc IWorkflow
+    function getAgents(uint256 workflowId) external view workflowExists(workflowId) returns (uint256[] memory agentIds) {
+        Child[] storage children = _children[workflowId];
         agentIds = new uint256[](children.length);
         for (uint256 i = 0; i < children.length; i++) {
             agentIds[i] = children[i].tokenId;
         }
     }
 
-    /// @inheritdoc IManowar
-    function getAgentCount(uint256 manowarId) external view manowarExists(manowarId) returns (uint256) {
-        return _children[manowarId].length;
+    /// @inheritdoc IWorkflow
+    function getAgentCount(uint256 workflowId) external view workflowExists(workflowId) returns (uint256) {
+        return _children[workflowId].length;
     }
 
-    /// @inheritdoc IManowar
+    /// @inheritdoc IWorkflow
     function setCoordinator(
-        uint256 manowarId, 
+        uint256 workflowId, 
         bool hasCoordinator, 
         string calldata model
-    ) external onlyOwner(manowarId) manowarExists(manowarId) {
-        _manowars[manowarId].hasCoordinator = hasCoordinator;
-        _manowars[manowarId].coordinatorModel = model;
-        emit CoordinatorSet(manowarId, hasCoordinator ? 1 : 0, model);
+    ) external onlyOwner(workflowId) workflowExists(workflowId) {
+        _workflows[workflowId].hasCoordinator = hasCoordinator;
+        _workflows[workflowId].coordinatorModel = model;
+        emit CoordinatorSet(workflowId, hasCoordinator ? 1 : 0, model);
     }
 
-    /// @inheritdoc IManowar
+    /// @inheritdoc IWorkflow
     function updateLeaseSettings(
-        uint256 manowarId,
+        uint256 workflowId,
         bool enabled,
         uint256 duration,
         uint8 percent
-    ) external onlyOwner(manowarId) manowarExists(manowarId) {
+    ) external onlyOwner(workflowId) workflowExists(workflowId) {
         if (enabled && percent > MAX_LEASE_PERCENT) revert InvalidLeasePercent();
         
-        ManowarData storage data = _manowars[manowarId];
+        WorkflowData storage data = _workflows[workflowId];
         data.leaseEnabled = enabled;
         data.leaseDuration = duration;
         data.leasePercent = percent;
         
-        emit LeaseStatusChanged(manowarId, enabled, duration, percent);
+        emit LeaseStatusChanged(workflowId, enabled, duration, percent);
     }
 
-    /// @inheritdoc IManowar
-    function attachRFA(uint256 manowarId, uint256 rfaId) external onlyRFAContract manowarExists(manowarId) {
-        ManowarData storage data = _manowars[manowarId];
-        if (data.hasActiveRfa) revert ManowarHasActiveRFA(manowarId);
+    /// @inheritdoc IWorkflow
+    function attachRFA(uint256 workflowId, uint256 rfaId) external onlyRFAContract workflowExists(workflowId) {
+        WorkflowData storage data = _workflows[workflowId];
+        if (data.hasActiveRfa) revert WorkflowHasActiveRFA(workflowId);
         
         data.hasActiveRfa = true;
         data.rfaId = rfaId;
 
         // Move from complete to RFA list
-        _removeFromCompleteList(manowarId);
-        _rfaManowarIndex[manowarId] = _manowarsWithRFA.length;
-        _manowarsWithRFA.push(manowarId);
+        _removeFromCompleteList(workflowId);
+        _rfaWorkflowIndex[workflowId] = _workflowsWithRFA.length;
+        _workflowsWithRFA.push(workflowId);
         
-        emit RFAAttached(manowarId, rfaId);
+        emit RFAAttached(workflowId, rfaId);
     }
 
-    /// @inheritdoc IManowar
-    function resolveRFA(uint256 manowarId) external onlyRFAContract manowarExists(manowarId) {
-        ManowarData storage data = _manowars[manowarId];
+    /// @inheritdoc IWorkflow
+    function resolveRFA(uint256 workflowId) external onlyRFAContract workflowExists(workflowId) {
+        WorkflowData storage data = _workflows[workflowId];
         
         uint256 resolvedRfaId = data.rfaId;
         data.hasActiveRfa = false;
         data.rfaId = 0;
 
         // Move from RFA to complete list
-        _removeFromRFAList(manowarId);
-        _completeManowarIndex[manowarId] = _completeManowars.length;
-        _completeManowars.push(manowarId);
+        _removeFromRFAList(workflowId);
+        _completeWorkflowIndex[workflowId] = _completeWorkflows.length;
+        _completeWorkflows.push(workflowId);
         
-        emit RFAResolved(manowarId, resolvedRfaId);
+        emit RFAResolved(workflowId, resolvedRfaId);
     }
 
-    /// @inheritdoc IManowar
-    function isComplete(uint256 manowarId) external view manowarExists(manowarId) returns (bool) {
-        return !_manowars[manowarId].hasActiveRfa;
+    /// @inheritdoc IWorkflow
+    function isComplete(uint256 workflowId) external view workflowExists(workflowId) returns (bool) {
+        return !_workflows[workflowId].hasActiveRfa;
     }
 
-    /// @inheritdoc IManowar
-    function hasAvailableUnits(uint256 manowarId) external view manowarExists(manowarId) returns (bool) {
-        ManowarData storage data = _manowars[manowarId];
+    /// @inheritdoc IWorkflow
+    function hasAvailableUnits(uint256 workflowId) external view workflowExists(workflowId) returns (bool) {
+        WorkflowData storage data = _workflows[workflowId];
         return data.unitsMinted < data.units;
     }
 
-    /// @inheritdoc IManowar
-    function consumeUnit(uint256 manowarId, address buyer) 
+    /// @inheritdoc IWorkflow
+    function consumeUnit(uint256 workflowId, address buyer) 
         external 
-        manowarExists(manowarId) 
+        workflowExists(workflowId) 
         returns (uint256 unitNumber) 
     {
-        ManowarData storage data = _manowars[manowarId];
-        if (data.unitsMinted >= data.units) revert NoUnitsAvailable(manowarId);
+        WorkflowData storage data = _workflows[workflowId];
+        if (data.unitsMinted >= data.units) revert NoUnitsAvailable(workflowId);
         
         unitNumber = ++data.unitsMinted;
         
         // Note: Agents are already licensed at nesting time, not usage time
-        // The Manowar's units track how many times the workflow can be used
-        // Agent licenses were consumed when they were nested into the Manowar
+        // The Workflow's units track how many times the workflow can be used
+        // Agent licenses were consumed when they were nested into the Workflow
     }
 
-    /// @inheritdoc IManowar
-    function calculateTotalPrice(uint256 manowarId) external view manowarExists(manowarId) returns (uint256) {
-        return _manowars[manowarId].totalPrice;
+    /// @inheritdoc IWorkflow
+    function calculateTotalPrice(uint256 workflowId) external view workflowExists(workflowId) returns (uint256) {
+        return _workflows[workflowId].totalPrice;
     }
 
-    /// @inheritdoc IManowar
-    function getManowarsByCreator(address creator) external view returns (uint256[] memory) {
-        return _manowarsByCreator[creator];
+    /// @inheritdoc IWorkflow
+    function getWorkflowsByCreator(address creator) external view returns (uint256[] memory) {
+        return _workflowsByCreator[creator];
     }
 
-    /// @inheritdoc IManowar
-    function totalManowars() external view returns (uint256) {
-        return _totalManowars;
+    /// @inheritdoc IWorkflow
+    function totalWorkflows() external view returns (uint256) {
+        return _totalWorkflows;
     }
 
-    /// @inheritdoc IManowar
-    function getCompleteManowars() external view returns (uint256[] memory) {
-        return _completeManowars;
+    /// @inheritdoc IWorkflow
+    function getCompleteWorkflows() external view returns (uint256[] memory) {
+        return _completeWorkflows;
     }
 
-    /// @inheritdoc IManowar
-    function getManowarsWithRFA() external view returns (uint256[] memory) {
-        return _manowarsWithRFA;
+    /// @inheritdoc IWorkflow
+    function getWorkflowsWithRFA() external view returns (uint256[] memory) {
+        return _workflowsWithRFA;
     }
 
-    /// @inheritdoc IManowar
+    /// @inheritdoc IWorkflow
     function getAgentFactory() external view returns (address) {
         return address(agentFactory);
     }
 
     /**
-     * @notice Get lease-specific info for a Manowar
-     * @param manowarId The Manowar ID
+     * @notice Get lease-specific info for a Workflow
+     * @param workflowId The Workflow ID
      * @return leaseEnabled Whether leasing is enabled
      * @return creator The creator address
      * @return leasePercent The lease percentage
      */
-    function getLeaseInfo(uint256 manowarId) external view manowarExists(manowarId) returns (
+    function getLeaseInfo(uint256 workflowId) external view workflowExists(workflowId) returns (
         bool leaseEnabled,
         address creator,
         uint8 leasePercent
     ) {
-        ManowarData storage data = _manowars[manowarId];
+        WorkflowData storage data = _workflows[workflowId];
         return (data.leaseEnabled, data.creator, data.leasePercent);
     }
 
@@ -615,7 +615,7 @@ contract Manowar is IManowar {
         uint256 parentId,
         address childContract,
         uint256 childId
-    ) external onlyOwner(parentId) manowarExists(parentId) {
+    ) external onlyOwner(parentId) workflowExists(parentId) {
         require(childContract == address(agentFactory), "Only agents can be nested");
         _nestAgent(parentId, childId);
     }
@@ -626,16 +626,16 @@ contract Manowar is IManowar {
         address childContract,
         uint256 childId,
         address to
-    ) external onlyOwner(parentId) manowarExists(parentId) {
+    ) external onlyOwner(parentId) workflowExists(parentId) {
         require(childContract == address(agentFactory), "Only agents can be unnested");
         require(to != address(0), "Zero address");
         
         uint256 idx = _childIndex[parentId][childContract][childId];
-        if (idx == 0) revert AgentNotInManowar(parentId, childId);
+        if (idx == 0) revert AgentNotInWorkflow(parentId, childId);
 
         // Update total price with license price
         IAgentFactory.AgentData memory agentData = agentFactory.getAgentData(childId);
-        _manowars[parentId].totalPrice -= agentData.licensePrice;
+        _workflows[parentId].totalPrice -= agentData.licensePrice;
 
         // Revoke the license in AgentFactory (bi-directional tracking)
         try agentFactory.revokeLicense(childId, address(this), parentId) {} catch {}
@@ -655,12 +655,12 @@ contract Manowar is IManowar {
     }
 
     /// @inheritdoc IERC7401
-    function childrenOf(uint256 parentId) external view manowarExists(parentId) returns (Child[] memory) {
+    function childrenOf(uint256 parentId) external view workflowExists(parentId) returns (Child[] memory) {
         return _children[parentId];
     }
 
     /// @inheritdoc IERC7401
-    function childCount(uint256 parentId) external view manowarExists(parentId) returns (uint256) {
+    function childCount(uint256 parentId) external view workflowExists(parentId) returns (uint256) {
         return _children[parentId].length;
     }
 
@@ -755,59 +755,59 @@ contract Manowar is IManowar {
     // Internal Functions
     // =============================================================================
 
-    function _nestAgent(uint256 manowarId, uint256 agentId) internal {
+    function _nestAgent(uint256 workflowId, uint256 agentId) internal {
         address agentFactoryAddr = address(agentFactory);
         
         // Check not already nested
-        require(_childIndex[manowarId][agentFactoryAddr][agentId] == 0, "Already nested");
+        require(_childIndex[workflowId][agentFactoryAddr][agentId] == 0, "Already nested");
         
         // Verify agent exists
         require(agentFactory.agentExists(agentId), "Agent not found");
         
         // Consume license in AgentFactory (bi-directional tracking)
         // This records the license relationship and decrements available licenses
-        agentFactory.consumeLicense(agentId, address(this), manowarId);
+        agentFactory.consumeLicense(agentId, address(this), workflowId);
         
         // Add to children
-        _children[manowarId].push(Child(agentFactoryAddr, agentId));
-        _childIndex[manowarId][agentFactoryAddr][agentId] = _children[manowarId].length;
+        _children[workflowId].push(Child(agentFactoryAddr, agentId));
+        _childIndex[workflowId][agentFactoryAddr][agentId] = _children[workflowId].length;
         
         // Set parent info
         _parentInfo[agentFactoryAddr][agentId] = ParentInfo({
             hasParent: true,
             parentContract: address(this),
-            parentId: manowarId
+            parentId: workflowId
         });
         
-        emit ChildNested(manowarId, agentId, agentFactoryAddr);
+        emit ChildNested(workflowId, agentId, agentFactoryAddr);
     }
 
-    function _removeFromCompleteList(uint256 manowarId) internal {
-        uint256 idx = _completeManowarIndex[manowarId];
-        uint256 lastIdx = _completeManowars.length - 1;
+    function _removeFromCompleteList(uint256 workflowId) internal {
+        uint256 idx = _completeWorkflowIndex[workflowId];
+        uint256 lastIdx = _completeWorkflows.length - 1;
         
         if (idx != lastIdx) {
-            uint256 lastManowarId = _completeManowars[lastIdx];
-            _completeManowars[idx] = lastManowarId;
-            _completeManowarIndex[lastManowarId] = idx;
+            uint256 lastWorkflowId = _completeWorkflows[lastIdx];
+            _completeWorkflows[idx] = lastWorkflowId;
+            _completeWorkflowIndex[lastWorkflowId] = idx;
         }
         
-        _completeManowars.pop();
-        delete _completeManowarIndex[manowarId];
+        _completeWorkflows.pop();
+        delete _completeWorkflowIndex[workflowId];
     }
 
-    function _removeFromRFAList(uint256 manowarId) internal {
-        uint256 idx = _rfaManowarIndex[manowarId];
-        uint256 lastIdx = _manowarsWithRFA.length - 1;
+    function _removeFromRFAList(uint256 workflowId) internal {
+        uint256 idx = _rfaWorkflowIndex[workflowId];
+        uint256 lastIdx = _workflowsWithRFA.length - 1;
         
         if (idx != lastIdx) {
-            uint256 lastManowarId = _manowarsWithRFA[lastIdx];
-            _manowarsWithRFA[idx] = lastManowarId;
-            _rfaManowarIndex[lastManowarId] = idx;
+            uint256 lastWorkflowId = _workflowsWithRFA[lastIdx];
+            _workflowsWithRFA[idx] = lastWorkflowId;
+            _rfaWorkflowIndex[lastWorkflowId] = idx;
         }
         
-        _manowarsWithRFA.pop();
-        delete _rfaManowarIndex[manowarId];
+        _workflowsWithRFA.pop();
+        delete _rfaWorkflowIndex[workflowId];
     }
 
     // =============================================================================
@@ -815,16 +815,16 @@ contract Manowar is IManowar {
     // =============================================================================
 
     function name() external pure returns (string memory) {
-        return "Manowar Workflow";
+        return "Workflow Workflow";
     }
 
     function symbol() external pure returns (string memory) {
-        return "MANOWAR";
+        return "WORKFLOW";
     }
 
-    function tokenURI(uint256 tokenId) external view manowarExists(tokenId) returns (string memory) {
-        // Return manowarCardUri - full metadata containing nested agentCards
-        return _manowars[tokenId].manowarCardUri;
+    function tokenURI(uint256 tokenId) external view workflowExists(tokenId) returns (string memory) {
+        // Return workflowCardUri - full metadata containing nested agentCards
+        return _workflows[tokenId].workflowCardUri;
     }
 
     function balanceOf(address owner) external view returns (uint256) {
@@ -832,7 +832,7 @@ contract Manowar is IManowar {
         return _balances[owner];
     }
 
-    function ownerOf(uint256 tokenId) external view manowarExists(tokenId) returns (address) {
+    function ownerOf(uint256 tokenId) external view workflowExists(tokenId) returns (address) {
         return _owners[tokenId];
     }
 
@@ -844,7 +844,7 @@ contract Manowar is IManowar {
         emit Approval(owner, to, tokenId);
     }
 
-    function getApproved(uint256 tokenId) external view manowarExists(tokenId) returns (address) {
+    function getApproved(uint256 tokenId) external view workflowExists(tokenId) returns (address) {
         return _tokenApprovals[tokenId];
     }
 

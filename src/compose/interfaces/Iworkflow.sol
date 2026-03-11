@@ -4,53 +4,53 @@ pragma solidity ^0.8.28;
 import {IERC7401} from "./IERC7401.sol";
 
 /**
- * @title IManowar
- * @notice Interface for Manowar workflows (ERC-7401 nestable NFTs)
+ * @title IWorkflow
+ * @notice Interface for Workflows (ERC-7401 nestable NFTs)
  * @dev Extends ERC-7401 to compose multiple ERC-8004 agents into workflows
  */
-interface IManowar is IERC7401 {
-    /// @notice Emitted when a Manowar is minted
-    event ManowarMinted(
-        uint256 indexed manowarId,
+interface IWorkflow is IERC7401 {
+    /// @notice Emitted when a Workflow is minted
+    event WorkflowMinted(
+        uint256 indexed workflowId,
         address indexed creator,
         string title,
         uint256 x402Price,
         uint256 units
     );
 
-    /// @notice Emitted when an agent is added to a Manowar
-    event AgentAdded(uint256 indexed manowarId, uint256 indexed agentId);
+    /// @notice Emitted when an agent is added to a Workflow
+    event AgentAdded(uint256 indexed workflowId, uint256 indexed agentId);
 
-    /// @notice Emitted when an agent is removed from a Manowar
-    event AgentRemoved(uint256 indexed manowarId, uint256 indexed agentId);
+    /// @notice Emitted when an agent is removed from a Workflow
+    event AgentRemoved(uint256 indexed workflowId, uint256 indexed agentId);
 
     /// @notice Emitted when a coordinator is set
-    event CoordinatorSet(uint256 indexed manowarId, uint256 indexed coordinatorAgentId, string model);
+    event CoordinatorSet(uint256 indexed workflowId, uint256 indexed coordinatorAgentId, string model);
 
     /// @notice Emitted when lease is enabled/disabled
-    event LeaseStatusChanged(uint256 indexed manowarId, bool enabled, uint256 duration, uint8 percent);
+    event LeaseStatusChanged(uint256 indexed workflowId, bool enabled, uint256 duration, uint8 percent);
 
     /// @notice Emitted when RFA is attached
-    event RFAAttached(uint256 indexed manowarId, uint256 indexed rfaId);
+    event RFAAttached(uint256 indexed workflowId, uint256 indexed rfaId);
 
     /// @notice Emitted when RFA is resolved
-    event RFAResolved(uint256 indexed manowarId, uint256 indexed rfaId);
+    event RFAResolved(uint256 indexed workflowId, uint256 indexed rfaId);
 
-    error ManowarNotFound(uint256 manowarId);
-    error NotManowarOwner(uint256 manowarId);
-    error AgentNotInManowar(uint256 manowarId, uint256 agentId);
+    error WorkflowNotFound(uint256 workflowId);
+    error NotWorkflowOwner(uint256 workflowId);
+    error AgentNotInWorkflow(uint256 workflowId, uint256 agentId);
     error InvalidUnits();
     error InvalidX402Price();
     error InvalidLeasePercent();
-    error ManowarHasActiveRFA(uint256 manowarId);
-    error NoUnitsAvailable(uint256 manowarId);
+    error WorkflowHasActiveRFA(uint256 workflowId);
+    error NoUnitsAvailable(uint256 workflowId);
 
     /**
-     * @notice Manowar metadata structure
+     * @notice Workflow metadata structure
      * @param title Workflow title
      * @param description Workflow description
      * @param banner Banner image URI (IPFS)
-     * @param manowarCardUri Full metadata URI (IPFS) - contains nested agentCards
+     * @param workflowCardUri Full metadata URI (IPFS) - contains nested agentCards
      * @param totalPrice Sum of all agent license prices
      * @param units Supply cap
      * @param unitsMinted Units already minted
@@ -63,11 +63,11 @@ interface IManowar is IERC7401 {
      * @param hasActiveRfa Whether there's an active RFA
      * @param rfaId The active RFA ID
      */
-    struct ManowarData {
+    struct WorkflowData {
         string title;
         string description;
         string banner;
-        string manowarCardUri;
+        string workflowCardUri;
         uint256 totalPrice;
         uint256 units;
         uint256 unitsMinted;
@@ -82,13 +82,13 @@ interface IManowar is IERC7401 {
     }
 
     /**
-     * @notice Parameters for minting a Manowar
+     * @notice Parameters for minting a Workflow
      */
     struct MintParams {
         string title;
         string description;
         string banner;
-        string manowarCardUri;
+        string workflowCardUri;
         uint256 units;
         bool leaseEnabled;
         uint256 leaseDuration;
@@ -98,18 +98,18 @@ interface IManowar is IERC7401 {
     }
 
     /**
-     * @notice Mint a new Manowar workflow
+     * @notice Mint a new Workflow
      * @param params Minting parameters
      * @param agentIds Initial agents to nest
-     * @return manowarId The newly minted Manowar ID
+     * @return workflowId The newly minted Workflow ID
      */
-    function mintManowar(
+    function mintWorkflow(
         MintParams calldata params,
         uint256[] calldata agentIds
-    ) external returns (uint256 manowarId);
+    ) external returns (uint256 workflowId);
 
     /**
-     * @notice Mint a Manowar using ERC-3009 gasless authorization
+     * @notice Mint a Workflow using ERC-3009 gasless authorization
      * @dev Combines USDC transfer and minting in single transaction
      * @param params Minting parameters
      * @param agentIds Initial agents to nest
@@ -120,9 +120,9 @@ interface IManowar is IERC7401 {
      * @param v ECDSA signature v
      * @param r ECDSA signature r
      * @param s ECDSA signature s
-     * @return manowarId The newly minted Manowar ID
+     * @return workflowId The newly minted Workflow ID
      */
-    function mintManowarWithAuth(
+    function mintWorkflowWithAuth(
         MintParams calldata params,
         uint256[] calldata agentIds,
         address payer,
@@ -132,131 +132,131 @@ interface IManowar is IERC7401 {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external returns (uint256 manowarId);
+    ) external returns (uint256 workflowId);
 
     /**
-     * @notice Get Manowar data
-     * @param manowarId The Manowar ID
-     * @return data The ManowarData struct
+     * @notice Get Workflow data
+     * @param workflowId The Workflow ID
+     * @return data The WorkflowData struct
      */
-    function getManowarData(uint256 manowarId) external view returns (ManowarData memory data);
+    function getWorkflowData(uint256 workflowId) external view returns (WorkflowData memory data);
 
     /**
-     * @notice Add an agent to a Manowar
-     * @param manowarId The Manowar ID
+     * @notice Add an agent to a Workflow
+     * @param workflowId The Workflow ID
      * @param agentId The agent to add
      */
-    function addAgent(uint256 manowarId, uint256 agentId) external;
+    function addAgent(uint256 workflowId, uint256 agentId) external;
 
     /**
-     * @notice Remove an agent from a Manowar
-     * @param manowarId The Manowar ID
+     * @notice Remove an agent from a Workflow
+     * @param workflowId The Workflow ID
      * @param agentId The agent to remove
      */
-    function removeAgent(uint256 manowarId, uint256 agentId) external;
+    function removeAgent(uint256 workflowId, uint256 agentId) external;
 
     /**
-     * @notice Get all agents in a Manowar
-     * @param manowarId The Manowar ID
+     * @notice Get all agents in a Workflow
+     * @param workflowId The Workflow ID
      * @return agentIds Array of agent IDs
      */
-    function getAgents(uint256 manowarId) external view returns (uint256[] memory agentIds);
+    function getAgents(uint256 workflowId) external view returns (uint256[] memory agentIds);
 
     /**
-     * @notice Get agent count for a Manowar
-     * @param manowarId The Manowar ID
+     * @notice Get agent count for a Workflow
+     * @param workflowId The Workflow ID
      * @return count Number of nested agents
      */
-    function getAgentCount(uint256 manowarId) external view returns (uint256 count);
+    function getAgentCount(uint256 workflowId) external view returns (uint256 count);
 
     /**
      * @notice Set or update coordinator
-     * @param manowarId The Manowar ID
+     * @param workflowId The Workflow ID
      * @param hasCoordinator Whether to enable coordinator
      * @param model The model ID for coordinator
      */
-    function setCoordinator(uint256 manowarId, bool hasCoordinator, string calldata model) external;
+    function setCoordinator(uint256 workflowId, bool hasCoordinator, string calldata model) external;
 
     /**
      * @notice Update lease settings
-     * @param manowarId The Manowar ID
+     * @param workflowId The Workflow ID
      * @param enabled Enable/disable leasing
      * @param duration Lease duration in days
      * @param percent Creator's share (max 20%)
      */
     function updateLeaseSettings(
-        uint256 manowarId,
+        uint256 workflowId,
         bool enabled,
         uint256 duration,
         uint8 percent
     ) external;
 
     /**
-     * @notice Attach an RFA to a Manowar
-     * @param manowarId The Manowar ID
+     * @notice Attach an RFA to a Workflow
+     * @param workflowId The Workflow ID
      * @param rfaId The RFA ID
      */
-    function attachRFA(uint256 manowarId, uint256 rfaId) external;
+    function attachRFA(uint256 workflowId, uint256 rfaId) external;
 
     /**
      * @notice Mark RFA as resolved
-     * @param manowarId The Manowar ID
+     * @param workflowId The Workflow ID
      */
-    function resolveRFA(uint256 manowarId) external;
+    function resolveRFA(uint256 workflowId) external;
 
     /**
-     * @notice Check if Manowar is complete (no active RFA)
-     * @param manowarId The Manowar ID
+     * @notice Check if Workflow is complete (no active RFA)
+     * @param workflowId The Workflow ID
      * @return isComplete True if no pending RFAs
      */
-    function isComplete(uint256 manowarId) external view returns (bool isComplete);
+    function isComplete(uint256 workflowId) external view returns (bool isComplete);
 
     /**
-     * @notice Check if Manowar has available units
-     * @param manowarId The Manowar ID
+     * @notice Check if Workflow has available units
+     * @param workflowId The Workflow ID
      * @return available True if units available (or unlimited)
      */
-    function hasAvailableUnits(uint256 manowarId) external view returns (bool available);
+    function hasAvailableUnits(uint256 workflowId) external view returns (bool available);
 
     /**
      * @notice Consume/mint one unit
-     * @param manowarId The Manowar ID
+     * @param workflowId The Workflow ID
      * @param buyer The address buying the unit
      * @return unitNumber The unit number consumed
      */
-    function consumeUnit(uint256 manowarId, address buyer) external returns (uint256 unitNumber);
+    function consumeUnit(uint256 workflowId, address buyer) external returns (uint256 unitNumber);
 
     /**
      * @notice Calculate total price including all agents
-     * @param manowarId The Manowar ID
+     * @param workflowId The Workflow ID
      * @return total Total price in USDC
      */
-    function calculateTotalPrice(uint256 manowarId) external view returns (uint256 total);
+    function calculateTotalPrice(uint256 workflowId) external view returns (uint256 total);
 
     /**
-     * @notice Get all Manowars by creator
+     * @notice Get all Workflows by creator
      * @param creator The creator address
-     * @return manowarIds Array of Manowar IDs
+     * @return workflowIds Array of Workflow IDs
      */
-    function getManowarsByCreator(address creator) external view returns (uint256[] memory manowarIds);
+    function getWorkflowsByCreator(address creator) external view returns (uint256[] memory workflowIds);
 
     /**
-     * @notice Get total Manowar count
-     * @return total Total Manowars minted
+     * @notice Get total Workflow count
+     * @return total Total Workflows minted
      */
-    function totalManowars() external view returns (uint256 total);
+    function totalWorkflows() external view returns (uint256 total);
 
     /**
-     * @notice Get complete Manowars (for marketplace)
-     * @return manowarIds Array of complete Manowar IDs
+     * @notice Get complete Workflows (for marketplace)
+     * @return workflowIds Array of complete Workflow IDs
      */
-    function getCompleteManowars() external view returns (uint256[] memory manowarIds);
+    function getCompleteWorkflows() external view returns (uint256[] memory workflowIds);
 
     /**
-     * @notice Get Manowars with active RFAs
-     * @return manowarIds Array of Manowar IDs with RFAs
+     * @notice Get Workflows with active RFAs
+     * @return workflowIds Array of Workflow IDs with RFAs
      */
-    function getManowarsWithRFA() external view returns (uint256[] memory manowarIds);
+    function getWorkflowsWithRFA() external view returns (uint256[] memory workflowIds);
 
     /**
      * @notice Get the AgentFactory address

@@ -71,12 +71,12 @@ interface IDelegation {
 
     /**
      * @notice Execute lease creation via delegation
-     * @param manowarId The Manowar to lease
+     * @param workflowId The Workflow to lease
      * @param duration Lease duration in days
      * @return leaseId The new lease ID
      */
     function delegateCreateLease(
-        uint256 manowarId,
+        uint256 workflowId,
         uint256 duration
     ) external returns (uint256 leaseId);
 

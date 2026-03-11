@@ -167,7 +167,7 @@ contract Distributor is IDistributor {
 
     /**
      * @notice Distribute lease fees
-     * @param creator Manowar creator address
+     * @param creator Workflow creator address
      * @param leaser Leaser address
      * @param creatorPercent Creator's share (max 20, in whole percent)
      * @param totalAmount Total amount to distribute

@@ -10,9 +10,9 @@ import {IERC8004Identity, IERC8004Reputation, IERC8004Validation} from "./interf
  * @dev Implements ERC-721 for AgentIDs with extended metadata for licensing, cloning, and pricing
  * 
  * Licensing Model:
- * - Each agent has a `licensePrice` - the fee to include it in a Manowar workflow
+ * - Each agent has a `licensePrice` - the fee to include it in a Workflow
  * - Each agent has `licenses` - supply cap for how many times it can be licensed (0 = infinite)
- * - When licensed into a Manowar, bi-directional tracking records the relationship
+ * - When licensed into a Workflow, bi-directional tracking records the relationship
  * - Agent creators retain ownership and receive payment when their agents are licensed
  * 
  * Manowar Extensions:
@@ -72,7 +72,7 @@ contract AgentFactory is IAgentFactory {
     // License Tracking State
     // =============================================================================
 
-    /// @notice Bi-directional license tracking: agentId => manowarContract => manowarId => licensed
+    /// @notice Bi-directional license tracking: agentId => workflowContract => workflowId => licensed
     mapping(uint256 => mapping(address => mapping(uint256 => bool))) private _licensedTo;
 
     /// @notice License records for each agent
@@ -190,8 +190,8 @@ contract AgentFactory is IAgentFactory {
     /// @inheritdoc IAgentFactory
     function consumeLicense(
         uint256 agentId,
-        address manowarContract,
-        uint256 manowarId
+        address workflowContract,
+        uint256 workflowId
     ) external onlyAuthorizedConsumer onlyExistingAgent(agentId) returns (uint256 licenseNumber) {
         AgentData storage agent = _agents[agentId];
         
@@ -200,48 +200,48 @@ contract AgentFactory is IAgentFactory {
             revert NoLicensesAvailable(agentId);
         }
 
-        // Check not already licensed to this Manowar
-        if (_licensedTo[agentId][manowarContract][manowarId]) {
-            revert AlreadyLicensed(agentId, manowarContract, manowarId);
+        // Check not already licensed to this Workflow
+        if (_licensedTo[agentId][workflowContract][workflowId]) {
+            revert AlreadyLicensed(agentId, workflowContract, workflowId);
         }
 
         licenseNumber = ++agent.licensesMinted;
 
         // Record the license
-        _licensedTo[agentId][manowarContract][manowarId] = true;
+        _licensedTo[agentId][workflowContract][workflowId] = true;
         _licenseRecords[agentId].push(LicenseRecord({
-            manowarContract: manowarContract,
-            manowarId: manowarId,
+            workflowContract: workflowContract,
+            workflowId: workflowId,
             licensedAt: block.timestamp
         }));
 
-        emit AgentLicensed(agentId, manowarContract, manowarId, licenseNumber);
+        emit AgentLicensed(agentId, workflowContract, workflowId, licenseNumber);
     }
 
     /// @inheritdoc IAgentFactory
     function revokeLicense(
         uint256 agentId,
-        address manowarContract,
-        uint256 manowarId
+        address workflowContract,
+        uint256 workflowId
     ) external onlyAuthorizedConsumer onlyExistingAgent(agentId) {
-        if (!_licensedTo[agentId][manowarContract][manowarId]) {
-            revert NotLicensed(agentId, manowarContract, manowarId);
+        if (!_licensedTo[agentId][workflowContract][workflowId]) {
+            revert NotLicensed(agentId, workflowContract, workflowId);
         }
 
-        _licensedTo[agentId][manowarContract][manowarId] = false;
+        _licensedTo[agentId][workflowContract][workflowId] = false;
         // Note: We don't remove from _licenseRecords array for gas efficiency
         // The _licensedTo mapping is the source of truth for active licenses
 
-        emit AgentLicenseRevoked(agentId, manowarContract, manowarId);
+        emit AgentLicenseRevoked(agentId, workflowContract, workflowId);
     }
 
     /// @inheritdoc IAgentFactory
     function isLicensedTo(
         uint256 agentId,
-        address manowarContract,
-        uint256 manowarId
+        address workflowContract,
+        uint256 workflowId
     ) external view returns (bool licensed) {
-        return _licensedTo[agentId][manowarContract][manowarId];
+        return _licensedTo[agentId][workflowContract][workflowId];
     }
 
     /// @inheritdoc IAgentFactory

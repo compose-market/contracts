@@ -5,22 +5,22 @@ import {IERC8004Identity} from "./IERC8004.sol";
 
 /**
  * @title IAgentFactory
- * @notice Interface for the Manowar Agent Factory (ERC-8004 Identity Registry + extensions)
- * @dev Extends ERC-8004 Identity with Manowar-specific fields: licenses, licensePrice, cloneable, dnaHash
+ * @notice Interface for the Agent Factory (ERC-8004 Identity Registry + extensions)
+ * @dev Extends ERC-8004 Identity with Manowar-protocol specific fields: licenses, licensePrice, cloneable, dnaHash
  * 
  * Licensing Model:
- * - Agents have a `licensePrice` that users pay to include the agent in a Manowar workflow
+ * - Agents have a `licensePrice` that users pay to include the agent in a Workflow
  * - Agents have `licenses` (supply cap) limiting how many times they can be licensed
- * - When licensed into a Manowar, bi-directional tracking records the relationship
+ * - When licensed into a Workflow, bi-directional tracking records the relationship
  * - Agent creators retain ownership and receive payment when their agents are licensed
  */
 interface IAgentFactory is IERC8004Identity {
-    /// @notice Agent data structure with Manowar extensions
+    /// @notice Agent data structure with Manowar-protocol extensions
     struct AgentData {
         bytes32 dnaHash;           // keccak256(skills, chain, model) - unique agent identity
         uint256 licenses;          // Supply cap for licensing (0 = infinite)
         uint256 licensesMinted;    // Number of licenses already issued
-        uint256 licensePrice;      // Price to license this agent into a Manowar (USDC, 6 decimals)
+        uint256 licensePrice;      // Price to license this agent into a Workflow (USDC, 6 decimals)
         address creator;           // Original creator address (receives licensing fees)
         bool cloneable;            // Can this agent be cloned
         bool isClone;              // Is this a cloned agent
@@ -30,8 +30,8 @@ interface IAgentFactory is IERC8004Identity {
 
     /// @notice License record for bi-directional tracking
     struct LicenseRecord {
-        address manowarContract;   // The Manowar contract that licensed this agent
-        uint256 manowarId;         // The Manowar token ID
+        address workflowContract;   // The Workflow contract that licensed this agent
+        uint256 workflowId;         // The Workflow token ID
         uint256 licensedAt;        // Timestamp when licensed
     }
 
@@ -45,19 +45,19 @@ interface IAgentFactory is IERC8004Identity {
         bool cloneable
     );
 
-    /// @notice Emitted when an agent is licensed into a Manowar
+    /// @notice Emitted when an agent is licensed into a Workflow
     event AgentLicensed(
         uint256 indexed agentId,
-        address indexed manowarContract,
-        uint256 indexed manowarId,
+        address indexed workflowContract,
+        uint256 indexed workflowId,
         uint256 licenseNumber
     );
 
-    /// @notice Emitted when a license is revoked (agent removed from Manowar)
+    /// @notice Emitted when a license is revoked (agent removed from Workflow)
     event AgentLicenseRevoked(
         uint256 indexed agentId,
-        address indexed manowarContract,
-        uint256 manowarId
+        address indexed workflowContract,
+        uint256 workflowId
     );
 
     /// @notice Emitted when agent license price is updated
@@ -67,14 +67,14 @@ interface IAgentFactory is IERC8004Identity {
     error NotAgentCreator(uint256 agentId, address caller);
     error AgentNotCloneable(uint256 agentId);
     error NoLicensesAvailable(uint256 agentId);
-    error AlreadyLicensed(uint256 agentId, address manowarContract, uint256 manowarId);
-    error NotLicensed(uint256 agentId, address manowarContract, uint256 manowarId);
+    error AlreadyLicensed(uint256 agentId, address workflowContract, uint256 workflowId);
+    error NotLicensed(uint256 agentId, address workflowContract, uint256 workflowId);
     error InvalidDnaHash();
     error InvalidPrice();
     error CloneCannotBeCloned(uint256 agentId);
 
     /**
-     * @notice Mint a new agent with full Manowar metadata
+     * @notice Mint a new agent with full Workflow metadata
      * @param dnaHash Unique hash from keccak256(skills, chain, model)
      * @param licenses Supply cap for licensing (0 = infinite)
      * @param licensePrice Price to license this agent in USDC (6 decimals)
@@ -112,42 +112,42 @@ interface IAgentFactory is IERC8004Identity {
     function hasAvailableLicenses(uint256 agentId) external view returns (bool available);
 
     /**
-     * @notice Consume a license for an agent (called by Manowar when nesting)
-     * @dev Records bi-directional tracking between agent and Manowar
+     * @notice Consume a license for an agent (called by Workflow when nesting)
+     * @dev Records bi-directional tracking between agent and Workflow
      * @param agentId The agent's unique identifier
-     * @param manowarContract The Manowar contract address
-     * @param manowarId The Manowar token ID
+     * @param workflowContract The Workflow contract address
+     * @param workflowId The Workflow token ID
      * @return licenseNumber The license number that was consumed
      */
     function consumeLicense(
         uint256 agentId,
-        address manowarContract,
-        uint256 manowarId
+        address workflowContract,
+        uint256 workflowId
     ) external returns (uint256 licenseNumber);
 
     /**
-     * @notice Revoke a license (called when agent is removed from Manowar)
+     * @notice Revoke a license (called when agent is removed from Workflow)
      * @param agentId The agent's unique identifier
-     * @param manowarContract The Manowar contract address
-     * @param manowarId The Manowar token ID
+     * @param workflowContract The Workflow contract address
+     * @param workflowId The Workflow token ID
      */
     function revokeLicense(
         uint256 agentId,
-        address manowarContract,
-        uint256 manowarId
+        address workflowContract,
+        uint256 workflowId
     ) external;
 
     /**
-     * @notice Check if an agent is licensed to a specific Manowar
+     * @notice Check if an agent is licensed to a specific Workflow
      * @param agentId The agent's unique identifier
-     * @param manowarContract The Manowar contract address
-     * @param manowarId The Manowar token ID
-     * @return licensed True if the agent is licensed to that Manowar
+     * @param workflowContract The Workflow contract address
+     * @param workflowId The Workflow token ID
+     * @return licensed True if the agent is licensed to that Workflow
      */
     function isLicensedTo(
         uint256 agentId,
-        address manowarContract,
-        uint256 manowarId
+        address workflowContract,
+        uint256 workflowId
     ) external view returns (bool licensed);
 
     /**

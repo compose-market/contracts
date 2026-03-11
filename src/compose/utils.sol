@@ -30,8 +30,8 @@ contract Utils {
     /// @notice AgentFactory reference
     address public agentFactory;
 
-    /// @notice Manowar contract reference
-    address public manowarContract;
+    /// @notice Workflow contract reference
+    address public workflowContract;
 
     /// @notice Admin address
     address private _admin;
@@ -41,7 +41,7 @@ contract Utils {
     // =============================================================================
 
     event PriceCalculated(
-        uint256 indexed manowarId,
+        uint256 indexed workflowId,
         uint256 baseModelPrice,
         uint256 agentPrice,
         uint256 x402Price,
@@ -49,7 +49,7 @@ contract Utils {
     );
 
     event UsageRecorded(
-        uint256 indexed manowarId,
+        uint256 indexed workflowId,
         address indexed user,
         uint256 tokensUsed,
         uint256 amountPaid
@@ -59,10 +59,10 @@ contract Utils {
     // Constructor
     // =============================================================================
 
-    constructor(address _agentManager, address _agentFactory, address _manowar) {
+    constructor(address _agentManager, address _agentFactory, address _workflow) {
         agentManager = _agentManager;
         agentFactory = _agentFactory;
-        manowarContract = _manowar;
+        workflowContract = _workflow;
         _admin = msg.sender;
     }
 
@@ -71,20 +71,20 @@ contract Utils {
     // =============================================================================
 
     /**
-     * @notice Calculate total price for using a Manowar workflow
-     * @param manowarId The Manowar ID
-     * @param modelPriceMultiplier Model price multiplier (from backend/lambda/lib/models.ts)
+     * @notice Calculate total price for using a Workflow
+     * @param workflowId The Workflow ID
+     * @param modelPriceMultiplier Model price multiplier (from backend/api/x402)
      * @param estimatedTokens Estimated tokens for the inference
      * @return totalPrice Total price in USDC (6 decimals)
      * @return breakdown Price breakdown [baseModelCost, agentsCost, x402Cost]
      */
     function calculateUsagePrice(
-        uint256 manowarId,
+        uint256 workflowId,
         uint256 modelPriceMultiplier,
         uint256 estimatedTokens
     ) external view returns (uint256 totalPrice, uint256[3] memory breakdown) {
-        // Get Manowar data
-        (uint256 totalAgentPrice, uint256 x402Price) = _getManowarPricing(manowarId);
+        // Get Workflow data
+        (uint256 totalAgentPrice, uint256 x402Price) = _getWorkflowPricing(workflowId);
         
         // Calculate base model cost
         // BASE_PRICE_PER_TOKEN * modelPriceMultiplier * tokens
@@ -101,15 +101,15 @@ contract Utils {
 
     /**
      * @notice Calculate maximum price (for x402 pre-authorization)
-     * @param manowarId The Manowar ID
+     * @param workflowId The Workflow ID
      * @param modelPriceMultiplier Model price multiplier
      * @return maxPrice Maximum possible price
      */
     function calculateMaxPrice(
-        uint256 manowarId,
+        uint256 workflowId,
         uint256 modelPriceMultiplier
     ) external view returns (uint256 maxPrice) {
-        (uint256 totalAgentPrice, uint256 x402Price) = _getManowarPricing(manowarId);
+        (uint256 totalAgentPrice, uint256 x402Price) = _getWorkflowPricing(workflowId);
         
         uint256 maxBaseModelCost = (BASE_PRICE_PER_TOKEN * modelPriceMultiplier * MAX_TOKENS_PER_CALL) / 100;
         
@@ -118,34 +118,34 @@ contract Utils {
 
     /**
      * @notice Record usage and emit event (for off-chain tracking)
-     * @param manowarId The Manowar ID
+     * @param workflowId The Workflow ID
      * @param user The user address
      * @param tokensUsed Tokens actually used
      * @param amountPaid Amount paid in USDC
      */
     function recordUsage(
-        uint256 manowarId,
+        uint256 workflowId,
         address user,
         uint256 tokensUsed,
         uint256 amountPaid
     ) external {
         require(msg.sender == _admin || msg.sender == agentManager, "Not authorized");
-        emit UsageRecorded(manowarId, user, tokensUsed, amountPaid);
+        emit UsageRecorded(workflowId, user, tokensUsed, amountPaid);
     }
 
     // =============================================================================
     // Internal Functions
     // =============================================================================
 
-    function _getManowarPricing(uint256 manowarId) internal view returns (uint256 totalAgentPrice, uint256 x402Price) {
-        // Call Manowar contract
-        (bool success, bytes memory data) = manowarContract.staticcall(
-            abi.encodeWithSignature("getManowarData(uint256)", manowarId)
+    function _getWorkflowPricing(uint256 workflowId) internal view returns (uint256 totalAgentPrice, uint256 x402Price) {
+        // Call Workflow contract
+        (bool success, bytes memory data) = workflowContract.staticcall(
+            abi.encodeWithSignature("getWorkflowData(uint256)", workflowId)
         );
         
-        require(success, "Failed to get Manowar data");
+        require(success, "Failed to get Workflow data");
         
-        // ManowarData struct has totalPrice at index 3 and x402Price at index 4
+        // WorkflowData struct has totalPrice at index 3 and x402Price at index 4
         (
             , // title
             , // description
@@ -168,12 +168,12 @@ contract Utils {
     function setContracts(
         address _agentManager,
         address _agentFactory,
-        address _manowar
+        address _workflow
     ) external {
         require(msg.sender == _admin, "Not admin");
         agentManager = _agentManager;
         agentFactory = _agentFactory;
-        manowarContract = _manowar;
+        workflowContract = _workflow;
     }
 
     function transferAdmin(address newAdmin) external {

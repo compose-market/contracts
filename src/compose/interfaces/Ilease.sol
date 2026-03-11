@@ -3,21 +3,21 @@ pragma solidity ^0.8.28;
 
 /**
  * @title ILease
- * @notice Interface for leasing Manowar workflows
+ * @notice Interface for leasing Workflows
  * @dev Handles fee splitting between creator and leaser during lease period
  */
 interface ILease {
     /// @notice Emitted when a lease is created
     event LeaseCreated(
         uint256 indexed leaseId,
-        uint256 indexed manowarId,
+        uint256 indexed workflowId,
         address indexed leaser,
         uint256 duration,
         uint8 creatorPercent
     );
 
     /// @notice Emitted when a lease is terminated
-    event LeaseTerminated(uint256 indexed leaseId, uint256 indexed manowarId);
+    event LeaseTerminated(uint256 indexed leaseId, uint256 indexed workflowId);
 
     /// @notice Emitted when lease fees are distributed
     event LeaseFeesDistributed(
@@ -32,10 +32,10 @@ interface ILease {
     error LeaseExpired(uint256 leaseId);
     error InvalidLeaseDuration();
     error InvalidLeasePercent();
-    error ManowarNotLeasable(uint256 manowarId);
-    error NotManowarOwner(uint256 manowarId);
+    error WorkflowNotLeasable(uint256 workflowId);
+    error NotWorkflowOwner(uint256 workflowId);
     error NotLeaser(uint256 leaseId);
-    error LeaseAlreadyExists(uint256 manowarId);
+    error LeaseAlreadyExists(uint256 workflowId);
 
     /// @notice Lease status enum
     enum LeaseStatus {
@@ -47,16 +47,16 @@ interface ILease {
 
     /**
      * @notice Lease data structure
-     * @param manowarId The Manowar workflow ID
+     * @param workflowId The Workflow ID
      * @param leaser Address of the leaser
-     * @param creator Address of the Manowar creator
+     * @param creator Address of the Workflow creator
      * @param startTime Lease start timestamp
      * @param endTime Lease end timestamp
      * @param creatorPercent Creator's share of usage fees (max 20%)
      * @param status Current lease status
      */
     struct LeaseData {
-        uint256 manowarId;
+        uint256 workflowId;
         address leaser;
         address creator;
         uint256 startTime;
@@ -66,12 +66,12 @@ interface ILease {
     }
 
     /**
-     * @notice Create a new lease for a Manowar workflow
-     * @param manowarId The Manowar to lease
+     * @notice Create a new lease for a Workflow
+     * @param workflowId The Workflow to lease
      * @param duration Lease duration in days
      * @return leaseId The newly created lease ID
      */
-    function createLease(uint256 manowarId, uint256 duration) external returns (uint256 leaseId);
+    function createLease(uint256 workflowId, uint256 duration) external returns (uint256 leaseId);
 
     /**
      * @notice Terminate a lease early
@@ -87,18 +87,18 @@ interface ILease {
     function getLeaseData(uint256 leaseId) external view returns (LeaseData memory data);
 
     /**
-     * @notice Get active lease for a Manowar
-     * @param manowarId The Manowar ID
+     * @notice Get active lease for a Workflow
+     * @param workflowId The Workflow ID
      * @return leaseId The active lease ID (0 if none)
      */
-    function getActiveLeaseFor(uint256 manowarId) external view returns (uint256 leaseId);
+    function getActiveLeaseFor(uint256 workflowId) external view returns (uint256 leaseId);
 
     /**
-     * @notice Check if a Manowar is currently leased
-     * @param manowarId The Manowar ID
+     * @notice Check if a Workflow is currently leased
+     * @param workflowId The Workflow ID
      * @return isLeased True if there's an active lease
      */
-    function isLeased(uint256 manowarId) external view returns (bool isLeased);
+    function isLeased(uint256 workflowId) external view returns (bool isLeased);
 
     /**
      * @notice Calculate fee split for a lease

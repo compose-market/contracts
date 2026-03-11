@@ -134,11 +134,11 @@ contract Delegation is IDelegation {
 
     /// @inheritdoc IDelegation
     function delegateCreateLease(
-        uint256 manowarId,
+        uint256 workflowId,
         uint256 duration
     ) external onlyManager moduleExists(MODULE_LEASE) returns (uint256 leaseId) {
         ILease leaseContract = ILease(_modules[MODULE_LEASE]);
-        leaseId = leaseContract.createLease(manowarId, duration);
+        leaseId = leaseContract.createLease(workflowId, duration);
     }
 
     /// @inheritdoc IDelegation

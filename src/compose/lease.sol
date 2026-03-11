@@ -5,7 +5,7 @@ import {ILease} from "./interfaces/Ilease.sol";
 
 /**
  * @title Lease
- * @notice Contract for leasing Manowar workflows
+ * @notice Contract for leasing Workflows
  * @dev Handles fee splitting between creator and leaser during lease period
  * 
  * Fee Split:
@@ -28,8 +28,8 @@ contract Lease is ILease {
     /// @notice USDC token contract
     IERC20 public immutable usdc;
 
-    /// @notice Manowar contract reference
-    address public manowarContract;
+    /// @notice Workflow contract reference
+    address public workflowContract;
 
     /// @notice Total leases created
     uint256 private _totalLeases;
@@ -40,7 +40,7 @@ contract Lease is ILease {
     /// @notice Lease data storage
     mapping(uint256 => LeaseData) private _leases;
 
-    /// @notice Active lease for each Manowar: manowarId => leaseId (0 if none)
+    /// @notice Active lease for each Workflow: workflowId => leaseId (0 if none)
     mapping(uint256 => uint256) private _activeLeases;
 
     /// @notice Leases by leaser address
@@ -53,8 +53,8 @@ contract Lease is ILease {
     // Constructor
     // =============================================================================
 
-    constructor(address _manowarContract, address _adminAddress) {
-        require(_manowarContract != address(0), "Zero Manowar address");
+    constructor(address _workflowContract, address _adminAddress) {
+        require(_workflowContract != address(0), "Zero Workflow address");
         require(_adminAddress != address(0), "Zero admin");
 
         address usdcAddress = _getUSDCAddress(block.chainid);
@@ -63,15 +63,15 @@ contract Lease is ILease {
         }
         
         usdc = IERC20(usdcAddress);
-        manowarContract = _manowarContract;
+        workflowContract = _workflowContract;
         _admin = _adminAddress;
         _nextLeaseId = 1;
     }
 
     function _getUSDCAddress(uint256 chainId) internal pure returns (address) {
-        if (chainId == 338) return 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0; // Cronos Testnet
         if (chainId == 43113) return 0x5425890298aed601595a70AB815c96711a31Bc65; // Avalanche Fuji
         if (chainId == 421614) return 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d; // Arbitrum Sepolia
+        if (chainId == 84532) return 0x036CbD53842c5426634e7929541eC2318f3dCF7e; // Base Sepolia
         return address(0);
     }
 
@@ -80,13 +80,13 @@ contract Lease is ILease {
     // =============================================================================
 
     /// @inheritdoc ILease
-    function createLease(uint256 manowarId, uint256 duration) external returns (uint256 leaseId) {
+    function createLease(uint256 workflowId, uint256 duration) external returns (uint256 leaseId) {
         if (duration == 0) revert InvalidLeaseDuration();
-        if (_activeLeases[manowarId] != 0) revert LeaseAlreadyExists(manowarId);
+        if (_activeLeases[workflowId] != 0) revert LeaseAlreadyExists(workflowId);
 
-        // Get Manowar data to verify leasing is enabled
-        (bool leasable, address creator, uint8 creatorPercent) = _getManowarLeaseInfo(manowarId);
-        if (!leasable) revert ManowarNotLeasable(manowarId);
+        // Get Workflow data to verify leasing is enabled
+        (bool leasable, address creator, uint8 creatorPercent) = _getWorkflowLeaseInfo(workflowId);
+        if (!leasable) revert WorkflowNotLeasable(workflowId);
         if (creatorPercent > MAX_LEASE_PERCENT) revert InvalidLeasePercent();
 
         leaseId = _nextLeaseId++;
@@ -97,7 +97,7 @@ contract Lease is ILease {
 
         // Store lease data
         _leases[leaseId] = LeaseData({
-            manowarId: manowarId,
+            workflowId: workflowId,
             leaser: msg.sender,
             creator: creator,
             startTime: startTime,
@@ -107,12 +107,12 @@ contract Lease is ILease {
         });
 
         // Set as active lease
-        _activeLeases[manowarId] = leaseId;
+        _activeLeases[workflowId] = leaseId;
 
         // Track by leaser
         _leasesByLeaser[msg.sender].push(leaseId);
 
-        emit LeaseCreated(leaseId, manowarId, msg.sender, duration, creatorPercent);
+        emit LeaseCreated(leaseId, workflowId, msg.sender, duration, creatorPercent);
     }
 
     /// @inheritdoc ILease
@@ -127,9 +127,9 @@ contract Lease is ILease {
         lease.status = LeaseStatus.Terminated;
         
         // Clear active lease
-        delete _activeLeases[lease.manowarId];
+        delete _activeLeases[lease.workflowId];
 
-        emit LeaseTerminated(leaseId, lease.manowarId);
+        emit LeaseTerminated(leaseId, lease.workflowId);
     }
 
     /// @inheritdoc ILease
@@ -139,8 +139,8 @@ contract Lease is ILease {
     }
 
     /// @inheritdoc ILease
-    function getActiveLeaseFor(uint256 manowarId) external view returns (uint256) {
-        uint256 leaseId = _activeLeases[manowarId];
+    function getActiveLeaseFor(uint256 workflowId) external view returns (uint256) {
+        uint256 leaseId = _activeLeases[workflowId];
         if (leaseId != 0) {
             LeaseData storage lease = _leases[leaseId];
             // Check if expired
@@ -152,8 +152,8 @@ contract Lease is ILease {
     }
 
     /// @inheritdoc ILease
-    function isLeased(uint256 manowarId) external view returns (bool) {
-        uint256 leaseId = _activeLeases[manowarId];
+    function isLeased(uint256 workflowId) external view returns (bool) {
+        uint256 leaseId = _activeLeases[workflowId];
         if (leaseId == 0) return false;
         
         LeaseData storage lease = _leases[leaseId];
@@ -216,14 +216,14 @@ contract Lease is ILease {
     // Internal Functions
     // =============================================================================
 
-    function _getManowarLeaseInfo(uint256 manowarId) internal view returns (
+    function _getWorkflowLeaseInfo(uint256 workflowId) internal view returns (
         bool leasable,
         address creator,
         uint8 creatorPercent
     ) {
-        // Call Manowar.getLeaseInfo(manowarId) which returns (bool, address, uint8)
-        (bool success, bytes memory data) = manowarContract.staticcall(
-            abi.encodeWithSignature("getLeaseInfo(uint256)", manowarId)
+        // Call Workflow.getLeaseInfo(workflowId) which returns (bool, address, uint8)
+        (bool success, bytes memory data) = workflowContract.staticcall(
+            abi.encodeWithSignature("getLeaseInfo(uint256)", workflowId)
         );
         
         if (!success) return (false, address(0), 0);
@@ -235,9 +235,9 @@ contract Lease is ILease {
     // Admin Functions
     // =============================================================================
 
-    function setManowarContract(address _manowar) external {
+    function setWorkflowContract(address _workflow) external {
         require(msg.sender == _admin, "Not admin");
-        manowarContract = _manowar;
+        workflowContract = _workflow;
     }
 
     function transferAdmin(address newAdmin) external {
@@ -267,7 +267,7 @@ contract Lease is ILease {
         LeaseData storage lease = _leases[leaseId];
         if (lease.status == LeaseStatus.Active && block.timestamp > lease.endTime) {
             lease.status = LeaseStatus.Expired;
-            delete _activeLeases[lease.manowarId];
+            delete _activeLeases[lease.workflowId];
         }
     }
 }
