@@ -7,7 +7,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {AgentFactory} from "../src/compose/agentfactory.sol";
 import {Clone} from "../src/compose/clone.sol";
 import {Warp} from "../src/compose/warp.sol";
-import {Manowar} from "../src/compose/manowar.sol";
+import {Workflow} from "../src/compose/workflow.sol";
 import {RFA} from "../src/compose/rfa.sol";
 import {Lease} from "../src/compose/lease.sol";
 import {Royalties} from "../src/compose/royalties.sol";
@@ -15,17 +15,17 @@ import {Distributor} from "../src/compose/distributor.sol";
 import {Utils} from "../src/compose/utils.sol";
 import {AgentManager} from "../src/compose/agentmanager.sol";
 import {Delegation} from "../src/compose/delegation.sol";
-import {IManowar} from "../src/compose/interfaces/Imanowar.sol";
+import {IWorkflow} from "../src/compose/interfaces/Iworkflow.sol";
 import {IClone} from "../src/compose/interfaces/Iclone.sol";
 import {IDistributor} from "../src/compose/interfaces/Iroyalties.sol";
 
 /**
  * @title ComposeTest
- * @notice Comprehensive tests for the Manowar Protocol
+ * @notice Comprehensive tests for the Workflow Protocol
  * @dev Tests ALL public/external functions in ALL contracts
  */
 contract ComposeTest is Test {
-    uint256 internal constant SUPPORTED_CHAIN_ID = 338;
+    uint256 internal constant SUPPORTED_CHAIN_ID = 84532;
     address internal constant SUPPORTED_USDC = 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0;
 
     // =============================================================================
@@ -35,7 +35,7 @@ contract ComposeTest is Test {
     AgentFactory public agentFactory;
     Clone public clone;
     Warp public warp;
-    Manowar public manowar;
+    Workflow public workflow;
     RFA public rfa;
     Lease public lease;
     Royalties public royalties;
@@ -82,26 +82,26 @@ contract ComposeTest is Test {
         clone = new Clone(address(agentFactory));
         warp = new Warp(address(agentFactory), treasury);
 
-        // Deploy Manowar (with chain-aware USDC payment token)
-        manowar = new Manowar(address(agentFactory), address(this));
+        // Deploy Workflow (with chain-aware USDC payment token)
+        workflow = new Workflow(address(agentFactory), address(this));
 
         // Deploy RFA and Lease
-        rfa = new RFA(address(manowar), address(agentFactory), address(this));
-        lease = new Lease(address(manowar), address(this));
+        rfa = new RFA(address(workflow), address(agentFactory), address(this));
+        lease = new Lease(address(workflow), address(this));
 
         // Deploy Delegation and AgentManager
         delegation = new Delegation();
         agentManager = new AgentManager(address(this));
 
         // Deploy Utils
-        utils = new Utils(address(agentManager), address(agentFactory), address(manowar), address(this));
+        utils = new Utils(address(agentManager), address(agentFactory), address(workflow), address(this));
 
         // Initialize
         delegation.initialize(address(agentManager));
         agentManager.initializeEcosystem(
             address(delegation),
             address(agentFactory),
-            address(manowar),
+            address(workflow),
             address(clone),
             address(warp),
             address(lease),
@@ -113,13 +113,13 @@ contract ComposeTest is Test {
         // Authorize consumers
         agentFactory.authorizeConsumer(address(clone));
         agentFactory.authorizeConsumer(address(warp));
-        agentFactory.authorizeConsumer(address(manowar));
+        agentFactory.authorizeConsumer(address(workflow));
 
-        // Set RFA contract in Manowar
-        manowar.setRFAContract(address(rfa));
-        manowar.setLeaseContract(address(lease));
-        manowar.setDistributor(address(distributor));
-        manowar.setTreasury(treasury);
+        // Set RFA contract in Workflow
+        workflow.setRFAContract(address(rfa));
+        workflow.setLeaseContract(address(lease));
+        workflow.setDistributor(address(distributor));
+        workflow.setTreasury(treasury);
     }
 
     // =============================================================================
@@ -203,13 +203,13 @@ contract ComposeTest is Test {
         vm.prank(alice);
         uint256 agentId = agentFactory.mintAgent(keccak256("consume"), 2, 1000000, false, "ipfs://test");
         
-        // Manowar contract is authorized
-        vm.prank(address(manowar));
-        uint256 license1 = agentFactory.consumeLicense(agentId, address(manowar), 1);
+        // Workflow contract is authorized
+        vm.prank(address(workflow));
+        uint256 license1 = agentFactory.consumeLicense(agentId, address(workflow), 1);
         assertEq(license1, 1);
         
-        vm.prank(address(manowar));
-        uint256 license2 = agentFactory.consumeLicense(agentId, address(manowar), 2);
+        vm.prank(address(workflow));
+        uint256 license2 = agentFactory.consumeLicense(agentId, address(workflow), 2);
         assertEq(license2, 2);
     }
 
@@ -295,7 +295,7 @@ contract ComposeTest is Test {
         vm.prank(alice);
         uint256 agentId = agentFactory.mintAgent(keccak256("erc721"), 100, 1000000, false, "ipfs://test");
 
-        assertEq(agentFactory.name(), "Manowar Agent");
+        assertEq(agentFactory.name(), "Workflow Agent");
         assertEq(agentFactory.symbol(), "MWAGENT");
         assertEq(agentFactory.tokenURI(agentId), "ipfs://test");
         assertEq(agentFactory.balanceOf(alice), 1);
@@ -503,10 +503,10 @@ contract ComposeTest is Test {
     }
 
     // =============================================================================
-    // Manowar (ERC-7401) Tests - ALL Functions
+    // Workflow (ERC-7401) Tests - ALL Functions
     // =============================================================================
 
-    function test_Manowar_MintWorkflow() public {
+    function test_Workflow_MintWorkflow() public {
         vm.startPrank(alice);
         uint256 agent1 = agentFactory.mintAgent(keccak256("ma1"), 100, 500000, false, "ipfs://1");
         uint256 agent2 = agentFactory.mintAgent(keccak256("ma2"), 100, 300000, false, "ipfs://2");
@@ -516,11 +516,11 @@ contract ComposeTest is Test {
         agentIds[0] = agent1;
         agentIds[1] = agent2;
 
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test Workflow",
             description: "A test workflow",
             banner: "ipfs://banner",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 50,
             leaseEnabled: true,
             leaseDuration: 30,
@@ -529,92 +529,92 @@ contract ComposeTest is Test {
             coordinatorModel: ""
         });
 
-        // Bob mints the manowar (needs to approve USDC for agent prices)
+        // Bob mints the workflow (needs to approve USDC for agent prices)
         uint256 totalPrice = 500000 + 300000; // agent1 + agent2 prices
         vm.startPrank(bob);
-        usdc.approve(address(manowar), totalPrice);
-        uint256 manowarId = manowar.mintManowar(params, agentIds);
+        usdc.approve(address(workflow), totalPrice);
+        uint256 workflowId = workflow.mintWorkflow(params, agentIds);
         vm.stopPrank();
 
-        assertEq(manowarId, 1);
-        assertEq(manowar.totalManowars(), 1);
+        assertEq(workflowId, 1);
+        assertEq(workflow.totalWorkflows(), 1);
         
-        IManowar.ManowarData memory data = manowar.getManowarData(manowarId);
+        IWorkflow.WorkflowData memory data = workflow.getWorkflowData(workflowId);
         assertEq(data.title, "Test Workflow");
         assertEq(data.totalPrice, 800000);
-        assertEq(data.manowarCardUri, "");  // manowarCardUri set in params
+        assertEq(data.workflowCardUri, "");  // workflowCardUri set in params
 
-        uint256[] memory agents = manowar.getAgents(manowarId);
+        uint256[] memory agents = workflow.getAgents(workflowId);
         assertEq(agents.length, 2);
         
         // Verify alice (agent creator) received payment
         // Note: distributor splits payments, so check sum went through
     }
 
-    function test_Manowar_AddRemoveAgent() public {
+    function test_Workflow_AddRemoveAgent() public {
         vm.startPrank(alice);
         uint256 agentId = agentFactory.mintAgent(keccak256("addrem"), 100, 500000, false, "ipfs://1");
 
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
-        manowar.addAgent(manowarId, agentId);
-        assertEq(manowar.getAgentCount(manowarId), 1);
+        workflow.addAgent(workflowId, agentId);
+        assertEq(workflow.getAgentCount(workflowId), 1);
 
-        manowar.removeAgent(manowarId, agentId);
-        assertEq(manowar.getAgentCount(manowarId), 0);
+        workflow.removeAgent(workflowId, agentId);
+        assertEq(workflow.getAgentCount(workflowId), 0);
         
         vm.stopPrank();
     }
 
-    function test_Manowar_SetCoordinator() public {
+    function test_Workflow_SetCoordinator() public {
         vm.startPrank(alice);
         uint256 coordAgent = agentFactory.mintAgent(keccak256("coord"), 100, 500000, false, "ipfs://1");
 
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
-        manowar.setCoordinator(manowarId, true, "gpt-4");
+        workflow.setCoordinator(workflowId, true, "gpt-4");
 
-        IManowar.ManowarData memory data = manowar.getManowarData(manowarId);
+        IWorkflow.WorkflowData memory data = workflow.getWorkflowData(workflowId);
         assertTrue(data.hasCoordinator);
         assertEq(data.coordinatorModel, "gpt-4");
         
         vm.stopPrank();
     }
 
-    function test_Manowar_UpdateLeaseSettings() public {
+    function test_Workflow_UpdateLeaseSettings() public {
         vm.startPrank(alice);
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
-        manowar.updateLeaseSettings(manowarId, true, 60, 15);
+        workflow.updateLeaseSettings(workflowId, true, 60, 15);
 
-        IManowar.ManowarData memory data = manowar.getManowarData(manowarId);
+        IWorkflow.WorkflowData memory data = workflow.getWorkflowData(workflowId);
         assertTrue(data.leaseEnabled);
         assertEq(data.leaseDuration, 60);
         assertEq(data.leasePercent, 15);
@@ -622,59 +622,59 @@ contract ComposeTest is Test {
         vm.stopPrank();
     }
 
-    function test_Manowar_IsComplete() public {
+    function test_Workflow_IsComplete() public {
         vm.startPrank(alice);
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
-        assertTrue(manowar.isComplete(manowarId));
+        assertTrue(workflow.isComplete(workflowId));
         vm.stopPrank();
     }
 
-    function test_Manowar_HasAvailableUnits() public {
+    function test_Workflow_HasAvailableUnits() public {
         vm.startPrank(alice);
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
-        assertTrue(manowar.hasAvailableUnits(manowarId));
+        assertTrue(workflow.hasAvailableUnits(workflowId));
         vm.stopPrank();
     }
 
-    function test_Manowar_ConsumeUnit() public {
+    function test_Workflow_ConsumeUnit() public {
         vm.startPrank(alice);
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
         vm.stopPrank();
 
-        uint256 unit = manowar.consumeUnit(manowarId, bob);
+        uint256 unit = workflow.consumeUnit(workflowId, bob);
         assertEq(unit, 1);
     }
 
-    function test_Manowar_CalculateTotalPrice() public {
+    function test_Workflow_CalculateTotalPrice() public {
         vm.startPrank(alice);
         uint256 agent1 = agentFactory.mintAgent(keccak256("tp1"), 100, 500000, false, "ipfs://1");
         vm.stopPrank();
@@ -682,71 +682,71 @@ contract ComposeTest is Test {
         uint256[] memory agentIds = new uint256[](1);
         agentIds[0] = agent1;
 
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
-        // Bob mints the manowar - needs to approve USDC for agent price
+        // Bob mints the workflow - needs to approve USDC for agent price
         vm.startPrank(bob);
-        usdc.approve(address(manowar), 500000);
-        uint256 manowarId = manowar.mintManowar(params, agentIds);
+        usdc.approve(address(workflow), 500000);
+        uint256 workflowId = workflow.mintWorkflow(params, agentIds);
         vm.stopPrank();
 
-        assertEq(manowar.calculateTotalPrice(manowarId), 500000); // totalPrice only (x402Price removed) // 500000 + 100000
+        assertEq(workflow.calculateTotalPrice(workflowId), 500000); // totalPrice only (x402Price removed) // 500000 + 100000
     }
 
-    function test_Manowar_GetManowarsByCreator() public {
+    function test_Workflow_GetWorkflowsByCreator() public {
         vm.startPrank(alice);
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        manowar.mintManowar(params, empty);
-        manowar.mintManowar(params, empty);
+        workflow.mintWorkflow(params, empty);
+        workflow.mintWorkflow(params, empty);
         vm.stopPrank();
 
-        uint256[] memory manowars = manowar.getManowarsByCreator(alice);
-        assertEq(manowars.length, 2);
+        uint256[] memory workflows = workflow.getWorkflowsByCreator(alice);
+        assertEq(workflows.length, 2);
     }
 
-    function test_Manowar_GetCompleteManowars() public {
+    function test_Workflow_GetCompleteWorkflows() public {
         vm.startPrank(alice);
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        manowar.mintManowar(params, empty);
+        workflow.mintWorkflow(params, empty);
         vm.stopPrank();
 
-        uint256[] memory complete = manowar.getCompleteManowars();
+        uint256[] memory complete = workflow.getCompleteWorkflows();
         assertEq(complete.length, 1);
     }
 
-    function test_Manowar_GetManowarsWithRFA() public {
-        uint256[] memory withRFA = manowar.getManowarsWithRFA();
+    function test_Workflow_GetWorkflowsWithRFA() public {
+        uint256[] memory withRFA = workflow.getWorkflowsWithRFA();
         assertEq(withRFA.length, 0);
     }
 
-    function test_Manowar_GetAgentFactory() public {
-        assertEq(manowar.getAgentFactory(), address(agentFactory));
+    function test_Workflow_GetAgentFactory() public {
+        assertEq(workflow.getAgentFactory(), address(agentFactory));
     }
 
-    function test_Manowar_MaxLeasePercent() public {
-        assertEq(manowar.MAX_LEASE_PERCENT(), 20);
+    function test_Workflow_MaxLeasePercent() public {
+        assertEq(workflow.MAX_LEASE_PERCENT(), 20);
     }
 
     function test_USDCResolution_AcrossSupportedChains() public {
@@ -755,16 +755,16 @@ contract ComposeTest is Test {
         _assertUSDCResolutionForChain(421614, 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d);
     }
 
-    function test_Manowar_UnsupportedChainReverts() public {
+    function test_Workflow_UnsupportedChainReverts() public {
         uint256 unsupportedChainId = 777777;
         vm.chainId(unsupportedChainId);
 
         AgentFactory localFactory = new AgentFactory(address(this));
-        vm.expectRevert(abi.encodeWithSelector(Manowar.UnsupportedChain.selector, unsupportedChainId));
-        new Manowar(address(localFactory), address(this));
+        vm.expectRevert(abi.encodeWithSelector(Workflow.UnsupportedChain.selector, unsupportedChainId));
+        new Workflow(address(localFactory), address(this));
     }
 
-    function test_Manowar_ERC7401_ChildrenOf() public {
+    function test_Workflow_ERC7401_ChildrenOf() public {
         vm.startPrank(alice);
         uint256 agent1 = agentFactory.mintAgent(keccak256("c1"), 100, 500000, false, "ipfs://1");
         vm.stopPrank();
@@ -772,42 +772,42 @@ contract ComposeTest is Test {
         uint256[] memory agentIds = new uint256[](1);
         agentIds[0] = agent1;
 
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
-        // Bob mints the manowar - needs to approve USDC for agent price
+        // Bob mints the workflow - needs to approve USDC for agent price
         vm.startPrank(bob);
-        usdc.approve(address(manowar), 500000);
-        uint256 manowarId = manowar.mintManowar(params, agentIds);
+        usdc.approve(address(workflow), 500000);
+        uint256 workflowId = workflow.mintWorkflow(params, agentIds);
         vm.stopPrank();
 
-        IManowar.Child[] memory children = manowar.childrenOf(manowarId);
+        IWorkflow.Child[] memory children = workflow.childrenOf(workflowId);
         assertEq(children.length, 1);
     }
 
-    function test_Manowar_ERC7401_ChildCount() public {
+    function test_Workflow_ERC7401_ChildCount() public {
         vm.startPrank(alice);
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
         vm.stopPrank();
 
-        assertEq(manowar.childCount(manowarId), 0);
+        assertEq(workflow.childCount(workflowId), 0);
     }
 
-    function test_Manowar_ERC7401_ParentOf() public {
+    function test_Workflow_ERC7401_ParentOf() public {
         vm.startPrank(alice);
         uint256 agent1 = agentFactory.mintAgent(keccak256("p1"), 100, 500000, false, "ipfs://1");
         vm.stopPrank();
@@ -815,24 +815,24 @@ contract ComposeTest is Test {
         uint256[] memory agentIds = new uint256[](1);
         agentIds[0] = agent1;
 
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
-        // Bob mints the manowar - needs to approve USDC for agent price
+        // Bob mints the workflow - needs to approve USDC for agent price
         vm.startPrank(bob);
-        usdc.approve(address(manowar), 500000);
-        uint256 manowarId = manowar.mintManowar(params, agentIds);
+        usdc.approve(address(workflow), 500000);
+        uint256 workflowId = workflow.mintWorkflow(params, agentIds);
         vm.stopPrank();
 
-        (bool hasParent, address parentContract, uint256 parentId) = manowar.parentOf(address(agentFactory), agent1);
+        (bool hasParent, address parentContract, uint256 parentId) = workflow.parentOf(address(agentFactory), agent1);
         assertTrue(hasParent);
-        assertEq(parentContract, address(manowar));
-        assertEq(parentId, manowarId);
+        assertEq(parentContract, address(workflow));
+        assertEq(parentId, workflowId);
     }
 
     // =============================================================================
@@ -842,16 +842,16 @@ contract ComposeTest is Test {
     function test_RFA_CreateAndAccept() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
         usdc.approve(address(rfa), 1000000);
 
@@ -859,13 +859,13 @@ contract ComposeTest is Test {
         skills[0] = keccak256("data-analysis");
         
         uint256 rfaId = rfa.createRFA(
-            manowarId, "Need Data Analyst",
+            workflowId, "Need Data Analyst",
             "Need an agent for data analysis",
             skills, 1000000
         );
         vm.stopPrank();
 
-        assertFalse(manowar.isComplete(manowarId));
+        assertFalse(workflow.isComplete(workflowId));
         assertEq(rfa.totalEscrowed(), 1000000);
 
         vm.startPrank(bob);
@@ -880,29 +880,29 @@ contract ComposeTest is Test {
 
         assertEq(usdc.balanceOf(bob), bobBalanceBefore + 1000000);
         assertEq(rfa.totalEscrowed(), 0);
-        assertTrue(manowar.isComplete(manowarId));
+        assertTrue(workflow.isComplete(workflowId));
     }
 
     function test_RFA_Cancel() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
         usdc.approve(address(rfa), 1000000);
         
         bytes32[] memory skills = new bytes32[](1);
         skills[0] = keccak256("skill");
         
-        uint256 rfaId = rfa.createRFA(manowarId, "Title", "Desc", skills, 1000000);
+        uint256 rfaId = rfa.createRFA(workflowId, "Title", "Desc", skills, 1000000);
 
         uint256 balanceBefore = usdc.balanceOf(alice);
 
@@ -917,27 +917,27 @@ contract ComposeTest is Test {
     function test_RFA_GetRFAData() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
         usdc.approve(address(rfa), 1000000);
         
         bytes32[] memory skills = new bytes32[](1);
         skills[0] = keccak256("skill");
         
-        uint256 rfaId = rfa.createRFA(manowarId, "Title", "Desc", skills, 1000000);
+        uint256 rfaId = rfa.createRFA(workflowId, "Title", "Desc", skills, 1000000);
         vm.stopPrank();
 
         RFA.RFARequest memory data = rfa.getRFAData(rfaId);
-        assertEq(data.manowarId, manowarId);
+        assertEq(data.workflowId, workflowId);
         assertEq(data.title, "Title");
         assertEq(data.offerAmount, 1000000);
         assertEq(data.publisher, alice);
@@ -946,23 +946,23 @@ contract ComposeTest is Test {
     function test_RFA_GetSubmissions() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
         usdc.approve(address(rfa), 1000000);
         
         bytes32[] memory skills = new bytes32[](1);
         skills[0] = keccak256("skill");
         
-        uint256 rfaId = rfa.createRFA(manowarId, "Title", "Desc", skills, 1000000);
+        uint256 rfaId = rfa.createRFA(workflowId, "Title", "Desc", skills, 1000000);
         vm.stopPrank();
 
         vm.prank(bob);
@@ -979,23 +979,23 @@ contract ComposeTest is Test {
     function test_RFA_GetRFAStatus() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
         usdc.approve(address(rfa), 1000000);
         
         bytes32[] memory skills = new bytes32[](1);
         skills[0] = keccak256("skill");
         
-        uint256 rfaId = rfa.createRFA(manowarId, "Title", "Desc", skills, 1000000);
+        uint256 rfaId = rfa.createRFA(workflowId, "Title", "Desc", skills, 1000000);
         vm.stopPrank();
 
         assertEq(uint256(rfa.getRFAStatus(rfaId)), 1); // 1 = Open
@@ -1004,75 +1004,75 @@ contract ComposeTest is Test {
     function test_RFA_GetOpenRFAs() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
         usdc.approve(address(rfa), 1000000);
         
         bytes32[] memory skills = new bytes32[](1);
         skills[0] = keccak256("skill");
         
-        rfa.createRFA(manowarId, "Title", "Desc", skills, 1000000);
+        rfa.createRFA(workflowId, "Title", "Desc", skills, 1000000);
         vm.stopPrank();
 
         uint256[] memory openRFAs = rfa.getOpenRFAs();
         assertEq(openRFAs.length, 1);
     }
 
-    function test_RFA_GetRFAsForManowar() public {
+    function test_RFA_GetRFAsForWorkflow() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
         usdc.approve(address(rfa), 1000000);
         
         bytes32[] memory skills = new bytes32[](1);
         skills[0] = keccak256("skill");
         
-        rfa.createRFA(manowarId, "Title", "Desc", skills, 1000000);
+        rfa.createRFA(workflowId, "Title", "Desc", skills, 1000000);
         vm.stopPrank();
 
-        uint256[] memory rfas = rfa.getRFAsForManowar(manowarId);
+        uint256[] memory rfas = rfa.getRFAsForWorkflow(workflowId);
         assertEq(rfas.length, 1);
     }
 
     function test_RFA_GetRFAsByPublisher() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
         usdc.approve(address(rfa), 1000000);
         
         bytes32[] memory skills = new bytes32[](1);
         skills[0] = keccak256("skill");
         
-        rfa.createRFA(manowarId, "Title", "Desc", skills, 1000000);
+        rfa.createRFA(workflowId, "Title", "Desc", skills, 1000000);
         vm.stopPrank();
 
         uint256[] memory rfas = rfa.getRFAsByPublisher(alice);
@@ -1082,23 +1082,23 @@ contract ComposeTest is Test {
     function test_RFA_TotalRFAs() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: false,
             leaseDuration: 0, leasePercent: 0,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
 
         usdc.approve(address(rfa), 1000000);
         
         bytes32[] memory skills = new bytes32[](1);
         skills[0] = keccak256("skill");
         
-        rfa.createRFA(manowarId, "Title", "Desc", skills, 1000000);
+        rfa.createRFA(workflowId, "Title", "Desc", skills, 1000000);
         vm.stopPrank();
 
         assertEq(rfa.totalRFAs(), 1);
@@ -1124,11 +1124,11 @@ contract ComposeTest is Test {
     function test_Lease_CreateLease() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Leasable Workflow",
             description: "Test",
             banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10,
             leaseEnabled: true,
             leaseDuration: 30,
@@ -1138,17 +1138,17 @@ contract ComposeTest is Test {
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
         vm.stopPrank();
 
         vm.prank(bob);
-        uint256 leaseId = lease.createLease(manowarId, 30);
+        uint256 leaseId = lease.createLease(workflowId, 30);
 
-        assertTrue(lease.isLeased(manowarId));
-        assertEq(lease.getActiveLeaseFor(manowarId), leaseId);
+        assertTrue(lease.isLeased(workflowId));
+        assertEq(lease.getActiveLeaseFor(workflowId), leaseId);
 
         Lease.LeaseData memory data = lease.getLeaseData(leaseId);
-        assertEq(data.manowarId, manowarId);
+        assertEq(data.workflowId, workflowId);
         assertEq(data.leaser, bob);
         assertEq(data.creatorPercent, 15);
     }
@@ -1156,44 +1156,44 @@ contract ComposeTest is Test {
     function test_Lease_TerminateLease() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: true,
             leaseDuration: 30, leasePercent: 15,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
         vm.stopPrank();
 
         vm.prank(bob);
-        uint256 leaseId = lease.createLease(manowarId, 30);
+        uint256 leaseId = lease.createLease(workflowId, 30);
 
         vm.prank(bob);
         lease.terminateLease(leaseId);
 
-        assertFalse(lease.isLeased(manowarId));
+        assertFalse(lease.isLeased(workflowId));
     }
 
     function test_Lease_CalculateFeeSplit() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: true,
             leaseDuration: 30, leasePercent: 20,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
         vm.stopPrank();
 
         vm.prank(bob);
-        uint256 leaseId = lease.createLease(manowarId, 30);
+        uint256 leaseId = lease.createLease(workflowId, 30);
 
         (uint256 creatorShare, uint256 leaserShare) = lease.calculateFeeSplit(leaseId, 1000);
         assertEq(creatorShare, 200);
@@ -1203,20 +1203,20 @@ contract ComposeTest is Test {
     function test_Lease_GetLeaseStatus() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: true,
             leaseDuration: 30, leasePercent: 15,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
         vm.stopPrank();
 
         vm.prank(bob);
-        uint256 leaseId = lease.createLease(manowarId, 30);
+        uint256 leaseId = lease.createLease(workflowId, 30);
 
         assertEq(uint256(lease.getLeaseStatus(leaseId)), 1); // 1 = Active
     }
@@ -1224,20 +1224,20 @@ contract ComposeTest is Test {
     function test_Lease_GetLeasesFor() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: true,
             leaseDuration: 30, leasePercent: 15,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
         vm.stopPrank();
 
         vm.prank(bob);
-        lease.createLease(manowarId, 30);
+        lease.createLease(workflowId, 30);
 
         uint256[] memory leases = lease.getLeasesFor(bob);
         assertEq(leases.length, 1);
@@ -1246,20 +1246,20 @@ contract ComposeTest is Test {
     function test_Lease_TotalLeases() public {
         vm.startPrank(alice);
         
-        IManowar.MintParams memory params = IManowar.MintParams({
+        IWorkflow.MintParams memory params = IWorkflow.MintParams({
             title: "Test", description: "Test", banner: "",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 10, leaseEnabled: true,
             leaseDuration: 30, leasePercent: 15,
             hasCoordinator: false, coordinatorModel: ""
         });
 
         uint256[] memory empty = new uint256[](0);
-        uint256 manowarId = manowar.mintManowar(params, empty);
+        uint256 workflowId = workflow.mintWorkflow(params, empty);
         vm.stopPrank();
 
         vm.prank(bob);
-        lease.createLease(manowarId, 30);
+        lease.createLease(workflowId, 30);
 
         assertEq(lease.totalLeases(), 1);
     }
@@ -1284,11 +1284,11 @@ contract ComposeTest is Test {
         vm.chainId(chainId);
 
         AgentFactory localFactory = new AgentFactory(address(this));
-        Manowar localManowar = new Manowar(address(localFactory), address(this));
-        RFA localRfa = new RFA(address(localManowar), address(localFactory), address(this));
-        Lease localLease = new Lease(address(localManowar), address(this));
+        Workflow localWorkflow = new Workflow(address(localFactory), address(this));
+        RFA localRfa = new RFA(address(localWorkflow), address(localFactory), address(this));
+        Lease localLease = new Lease(address(localWorkflow), address(this));
 
-        assertEq(address(localManowar.paymentToken()), expectedUSDC);
+        assertEq(address(localWorkflow.paymentToken()), expectedUSDC);
         assertEq(localRfa.getUSDC(), expectedUSDC);
         assertEq(localLease.getUSDC(), expectedUSDC);
     }
@@ -1468,8 +1468,8 @@ contract ComposeTest is Test {
         assertEq(agentManager.getAgentFactory(), address(agentFactory));
     }
 
-    function test_AgentManager_GetManowar() public {
-        assertEq(agentManager.getManowar(), address(manowar));
+    function test_AgentManager_GetWorkflow() public {
+        assertEq(agentManager.getWorkflow(), address(workflow));
     }
 
     function test_AgentManager_GetRFA() public {
@@ -1483,7 +1483,7 @@ contract ComposeTest is Test {
         ) = agentManager.getAllContracts();
 
         assertEq(af, address(agentFactory));
-        assertEq(m, address(manowar));
+        assertEq(m, address(workflow));
         assertEq(c, address(clone));
         assertEq(w, address(warp));
         assertEq(l, address(lease));
@@ -1525,7 +1525,7 @@ contract ComposeTest is Test {
         
         assertEq(utils.agentManager(), address(0x1));
         assertEq(utils.agentFactory(), address(0x2));
-        assertEq(utils.manowarContract(), address(0x3));
+        assertEq(utils.workflowContract(), address(0x3));
     }
 
     function test_Utils_TransferAdmin() public {
@@ -1558,17 +1558,17 @@ contract ComposeTest is Test {
             keccak256("external"), address(0), 100, 200000, "ipfs://warped"
         );
 
-        // 4. Alice creates a Manowar workflow
+        // 4. Alice creates a Workflow workflow
         uint256[] memory agents = new uint256[](3);
         agents[0] = agent2;
         agents[1] = clonedAgent;
         agents[2] = warpedAgent;
 
-        IManowar.MintParams memory manowarParams = IManowar.MintParams({
+        IWorkflow.MintParams memory workflowParams = IWorkflow.MintParams({
             title: "Multi-Agent Workflow",
             description: "Combines multiple agents",
             banner: "ipfs://banner",
-            manowarCardUri: "",
+            workflowCardUri: "",
             units: 25,
             leaseEnabled: true,
             leaseDuration: 60,
@@ -1579,22 +1579,22 @@ contract ComposeTest is Test {
 
         // Alice needs to approve USDC for the total price of agents (300000 + 400000 + 200000 = 900000)
         vm.startPrank(alice);
-        usdc.approve(address(manowar), 900000);
-        uint256 manowarId = manowar.mintManowar(manowarParams, agents);
+        usdc.approve(address(workflow), 900000);
+        uint256 workflowId = workflow.mintWorkflow(workflowParams, agents);
         vm.stopPrank();
 
-        // 5. Verify Manowar
-        IManowar.ManowarData memory data = manowar.getManowarData(manowarId);
+        // 5. Verify Workflow
+        IWorkflow.WorkflowData memory data = workflow.getWorkflowData(workflowId);
         assertEq(data.title, "Multi-Agent Workflow");
         assertEq(data.totalPrice, 900000);
-        assertEq(manowar.getAgentCount(manowarId), 3);
-        assertTrue(manowar.isComplete(manowarId));
+        assertEq(workflow.getAgentCount(workflowId), 3);
+        assertTrue(workflow.isComplete(workflowId));
 
         // 6. Bob leases the workflow
         vm.prank(bob);
-        uint256 leaseId = lease.createLease(manowarId, 30);
+        uint256 leaseId = lease.createLease(workflowId, 30);
 
-        assertTrue(lease.isLeased(manowarId));
+        assertTrue(lease.isLeased(workflowId));
 
         console.log("Integration test passed!");
     }

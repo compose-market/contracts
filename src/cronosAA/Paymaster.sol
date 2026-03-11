@@ -15,8 +15,8 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
  * 
  * Flow:
  * 1. User builds PackedUserOperation with callData
- * 2. Frontend requests paymaster signature from Lambda
- * 3. Lambda verifies user intent, signs paymasterAndData
+ * 2. Frontend requests paymaster signature from api/aa/prepare
+ * 3. api/ verifies user intent, signs paymasterAndData
  * 4. PackedUserOperation submitted to EntryPoint
  * 5. This contract verifies server signature → sponsors gas
  * 

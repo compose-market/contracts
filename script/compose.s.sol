@@ -6,7 +6,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {AgentFactory} from "../src/compose/agentfactory.sol";
 import {Clone} from "../src/compose/clone.sol";
 import {Warp} from "../src/compose/warp.sol";
-import {Manowar} from "../src/compose/manowar.sol";
+import {Workflow} from "../src/compose/workflow.sol";
 import {RFA} from "../src/compose/rfa.sol";
 import {Lease} from "../src/compose/lease.sol";
 import {Royalties} from "../src/compose/royalties.sol";
@@ -20,9 +20,9 @@ import {Delegation} from "../src/compose/delegation.sol";
  * @notice Deterministic deployment script for the Manowar protocol suite
  *
  * Usage:
- *   forge script Compose --rpc-url cronos-testnet --broadcast
  *   forge script Compose --rpc-url fuji --broadcast
  *   forge script Compose --rpc-url arb-sepolia --broadcast
+ *   forge script Compose --rpc-url base-sepolia --broadcast
  */
 contract Compose is Script {
     address constant DETERMINISTIC_PROXY = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
@@ -32,7 +32,7 @@ contract Compose is Script {
     bytes32 constant AGENT_FACTORY_SALT = keccak256("compose:agent-factory:v1:2026");
     bytes32 constant CLONE_SALT = keccak256("compose:clone:v1:2026");
     bytes32 constant WARP_SALT = keccak256("compose:warp:v1:2026");
-    bytes32 constant MANOWAR_SALT = keccak256("compose:manowar:v1:2026");
+    bytes32 constant WORKFLOW_SALT = keccak256("compose:workflow:v1:2026");
     bytes32 constant RFA_SALT = keccak256("compose:rfa:v1:2026");
     bytes32 constant LEASE_SALT = keccak256("compose:lease:v1:2026");
     bytes32 constant DELEGATION_SALT = keccak256("compose:delegation:v1:2026");
@@ -45,7 +45,7 @@ contract Compose is Script {
     AgentFactory public agentFactory;
     Clone public clone;
     Warp public warp;
-    Manowar public manowar;
+    Workflow public workflow;
     RFA public rfa;
     Lease public lease;
     Royalties public royalties;
@@ -114,11 +114,11 @@ contract Compose is Script {
             )
         );
 
-        manowar = Manowar(
+        workflow = Workflow(
             _deployDeterministic(
-                "Manowar",
-                MANOWAR_SALT,
-                abi.encodePacked(type(Manowar).creationCode, abi.encode(address(agentFactory), protocolAdmin))
+                "Workflow",
+                WORKFLOW_SALT,
+                abi.encodePacked(type(Workflow).creationCode, abi.encode(address(agentFactory), protocolAdmin))
             )
         );
 
@@ -126,7 +126,7 @@ contract Compose is Script {
             _deployDeterministic(
                 "RFA",
                 RFA_SALT,
-                abi.encodePacked(type(RFA).creationCode, abi.encode(address(manowar), address(agentFactory), protocolAdmin))
+                abi.encodePacked(type(RFA).creationCode, abi.encode(address(workflow), address(agentFactory), protocolAdmin))
             )
         );
 
@@ -134,7 +134,7 @@ contract Compose is Script {
             _deployDeterministic(
                 "Lease",
                 LEASE_SALT,
-                abi.encodePacked(type(Lease).creationCode, abi.encode(address(manowar), protocolAdmin))
+                abi.encodePacked(type(Lease).creationCode, abi.encode(address(workflow), protocolAdmin))
             )
         );
 
@@ -160,7 +160,7 @@ contract Compose is Script {
                 UTILS_SALT,
                 abi.encodePacked(
                     type(Utils).creationCode,
-                    abi.encode(address(agentManager), address(agentFactory), address(manowar), protocolAdmin)
+                    abi.encode(address(agentManager), address(agentFactory), address(workflow), protocolAdmin)
                 )
             )
         );
@@ -178,7 +178,7 @@ contract Compose is Script {
         agentManager.initializeEcosystem(
             address(delegation),
             address(agentFactory),
-            address(manowar),
+            address(workflow),
             address(clone),
             address(warp),
             address(lease),
@@ -190,14 +190,14 @@ contract Compose is Script {
 
         agentFactory.authorizeConsumer(address(clone));
         agentFactory.authorizeConsumer(address(warp));
-        agentFactory.authorizeConsumer(address(manowar));
+        agentFactory.authorizeConsumer(address(workflow));
         console.log("AgentFactory consumers authorized");
 
-        manowar.setRFAContract(address(rfa));
-        manowar.setLeaseContract(address(lease));
-        manowar.setDistributor(address(distributor));
-        manowar.setTreasury(treasury);
-        console.log("Manowar dependencies configured");
+        workflow.setRFAContract(address(rfa));
+        workflow.setLeaseContract(address(lease));
+        workflow.setDistributor(address(distributor));
+        workflow.setTreasury(treasury);
+        console.log("Workflow dependencies configured");
 
         vm.stopBroadcast();
 
@@ -206,7 +206,7 @@ contract Compose is Script {
         console.log("AgentFactory:", address(agentFactory));
         console.log("Clone:", address(clone));
         console.log("Warp:", address(warp));
-        console.log("Manowar:", address(manowar));
+        console.log("Workflow:", address(workflow));
         console.log("RFA:", address(rfa));
         console.log("Lease:", address(lease));
         console.log("Royalties:", address(royalties));

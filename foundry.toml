@@ -23,6 +23,8 @@ fuji = "${AVALANCHE_FUJI_RPC}"
 mainnet = "${AVALANCHE_MAINNET_RPC}"
 arb-sepolia = "${ARBITRUM_SEPOLIA_RPC}"
 arb-mainnet = "${ARBITRUM_MAINNET_RPC}"
+base-sepolia = "${BASE_SEPOLIA_RPC}"
+base-mainnet = "${BASE_MAINNET_RPC}"
 
 # Etherscan/Snowtrace verification
 [etherscan]

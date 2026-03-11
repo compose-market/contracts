@@ -74,9 +74,9 @@ contract USDCDispenser is Ownable, ReentrancyGuard, Pausable {
     }
 
     function _getUSDCAddress(uint256 chainId) internal pure returns (address) {
-        if (chainId == 338) return 0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0;      // Cronos Testnet
         if (chainId == 43113) return 0x5425890298aed601595a70AB815c96711a31Bc65;   // Avalanche Fuji
         if (chainId == 421614) return 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d;  // Arbitrum Sepolia
+        if (chainId == 84532) return 0x036CbD53842c5426634e7929541eC2318f3dCF7e; // Base Sepolia
         return address(0);
     }
 
