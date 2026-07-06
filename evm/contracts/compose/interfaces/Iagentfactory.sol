@@ -21,6 +21,7 @@ interface IAgentFactory is IERC8004Identity {
         uint256 licenses;          // Supply cap for licensing (0 = infinite)
         uint256 licensesMinted;    // Number of licenses already issued
         uint256 licensePrice;      // Price to license this agent into a Workflow (USDC, 6 decimals)
+        uint256 creatorFee;        // Agent invocation creator fee, whole percent
         address creator;           // Original creator address (receives licensing fees)
         bool cloneable;            // Can this agent be cloned
         bool isClone;              // Is this a cloned agent
@@ -42,6 +43,7 @@ interface IAgentFactory is IERC8004Identity {
         bytes32 dnaHash,
         uint256 licenses,
         uint256 licensePrice,
+        uint256 creatorFee,
         bool cloneable
     );
 
@@ -86,6 +88,15 @@ interface IAgentFactory is IERC8004Identity {
      * @param agentCardUri IPFS URI to the Agent Card JSON
      * @return agentId The newly minted agent's ID
      */
+    function mintAgent(
+        bytes32 dnaHash,
+        uint256 licenses,
+        uint256 licensePrice,
+        uint256 creatorFee,
+        bool cloneable,
+        string calldata agentCardUri
+    ) external returns (uint256 agentId);
+
     function mintAgent(
         bytes32 dnaHash,
         uint256 licenses,

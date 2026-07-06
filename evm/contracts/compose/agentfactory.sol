@@ -77,11 +77,23 @@ contract AgentFactory is IAgentFactory {
         bytes32 dnaHash,
         uint256 licenses,
         uint256 licensePrice,
+        uint256 creatorFee,
         bool cloneable,
         string calldata agentCardUri
     ) external returns (uint256 agentId) {
-        agentId = _mintManowarAgent(dnaHash, licenses, licensePrice, msg.sender, cloneable, false, 0, agentCardUri);
-        emit AgentMinted(agentId, msg.sender, dnaHash, licenses, licensePrice, cloneable);
+        agentId = _mintManowarAgent(dnaHash, licenses, licensePrice, creatorFee, msg.sender, cloneable, false, 0, agentCardUri);
+        emit AgentMinted(agentId, msg.sender, dnaHash, licenses, licensePrice, creatorFee, cloneable);
+    }
+
+    function mintAgent(
+        bytes32 dnaHash,
+        uint256 licenses,
+        uint256 licensePrice,
+        bool cloneable,
+        string calldata agentCardUri
+    ) external returns (uint256 agentId) {
+        agentId = _mintManowarAgent(dnaHash, licenses, licensePrice, 1, msg.sender, cloneable, false, 0, agentCardUri);
+        emit AgentMinted(agentId, msg.sender, dnaHash, licenses, licensePrice, 1, cloneable);
     }
 
     function register(string calldata agentURI_) external returns (uint256 agentId) {
@@ -270,8 +282,8 @@ contract AgentFactory is IAgentFactory {
         address cloner,
         string calldata agentCardUri
     ) external onlyAuthorizedConsumer returns (uint256 agentId) {
-        agentId = _mintManowarAgent(dnaHash, licenses, licensePrice, cloner, false, true, parentAgentId, agentCardUri);
-        emit AgentMinted(agentId, cloner, dnaHash, licenses, licensePrice, false);
+        agentId = _mintManowarAgent(dnaHash, licenses, licensePrice, 1, cloner, false, true, parentAgentId, agentCardUri);
+        emit AgentMinted(agentId, cloner, dnaHash, licenses, licensePrice, 1, false);
     }
 
     function mintWarped(
@@ -281,8 +293,8 @@ contract AgentFactory is IAgentFactory {
         address warper,
         string calldata agentCardUri
     ) external onlyAuthorizedConsumer returns (uint256 agentId) {
-        agentId = _mintManowarAgent(dnaHash, licenses, licensePrice, warper, false, false, 0, agentCardUri);
-        emit AgentMinted(agentId, warper, dnaHash, licenses, licensePrice, false);
+        agentId = _mintManowarAgent(dnaHash, licenses, licensePrice, 1, warper, false, false, 0, agentCardUri);
+        emit AgentMinted(agentId, warper, dnaHash, licenses, licensePrice, 1, false);
     }
 
     function authorizeConsumer(address consumer) external onlyAdmin {
@@ -379,7 +391,7 @@ contract AgentFactory is IAgentFactory {
         IERC8004Identity.MetadataEntry[] memory metadata
     ) internal returns (uint256 agentId) {
         bytes32 dnaHash = keccak256(abi.encodePacked("ERC8004_MANOWAR", owner, agentURI_, block.chainid, _nextAgentId));
-        agentId = _mintManowarAgent(dnaHash, 0, 0, owner, false, false, 0, agentURI_);
+        agentId = _mintManowarAgent(dnaHash, 0, 0, 1, owner, false, false, 0, agentURI_);
         for (uint256 i = 0; i < metadata.length; i++) {
             _setMetadata(agentId, metadata[i].key, metadata[i].value);
         }
@@ -389,6 +401,7 @@ contract AgentFactory is IAgentFactory {
         bytes32 dnaHash,
         uint256 licenses,
         uint256 licensePrice,
+        uint256 creatorFee,
         address owner,
         bool cloneable,
         bool isClone,
@@ -405,6 +418,7 @@ contract AgentFactory is IAgentFactory {
             licenses: licenses,
             licensesMinted: 0,
             licensePrice: licensePrice,
+            creatorFee: creatorFee,
             creator: owner,
             cloneable: cloneable,
             isClone: isClone,
