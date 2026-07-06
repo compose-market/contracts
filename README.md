@@ -1,66 +1,39 @@
-## Foundry
+# Manowar Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+On-chain contracts for the Manowar agent economy — the most complete implementation of [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) (Trustless Agents) and [ERC-7401](https://eips.ethereum.org/EIPS/eip-7401) (Nestable NFTs), deployed across two virtual machines.
 
-Foundry consists of:
+The ERC-8004 reference implementation ships three registries: identity, reputation, and validation. This repo implements all three and builds the full agentic economy on top — agent composition, licensing, cloning, cross-chain warping, request-for-agent escrow, leasing, royalties, fee distribution, and x402 pay-per-use pricing — on both EVM and Solana.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Layout
 
-## Documentation
+| Directory | Stack | Description |
+|-----------|-------|-------------|
+| [`evm/`](./evm) | Solidity / Foundry | 13 core contracts + interfaces, deterministic CREATE2 deployment |
+| [`solana/`](./solana) | Rust / Solana | 4 programs + shared `manowar` crate, no inter-program CPI |
 
-https://book.getfoundry.sh/
+## Architecture
 
-## Usage
+The same ERC-8004 agent economy model, implemented in two idioms:
 
-### Build
+| Surface | EVM contract(s) | Solana program |
+|---------|-----------------|----------------|
+| Agent identity (ERC-8004) | `AgentFactory` | `identity` |
+| Subjective trust (ERC-8004) | `Reputation` | `reputation` |
+| Objective trust (ERC-8004) | `Validation` | `validation` |
+| Composition & market (ERC-7401) | `Workflow`, `Clone`, `Warp`, `Lease`, `RFA`, `Royalties`, `Distributor` | `market` |
+| Orchestration | `AgentManager`, `Delegation` | — |
+| x402 pricing | `Utils` | — |
 
-```shell
-$ forge build
+## Build
+
+```sh
+# EVM
+cd evm && forge build
+
+# Solana
+cd solana && cargo build --workspace --release
 ```
 
-### Test
+## License
 
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+MIT.
